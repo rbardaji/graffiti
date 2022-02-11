@@ -17,3 +17,9 @@ cd graffiti
 
 pip install -r requirements.txt
 ```
+
+### 3. Run app (debug mode)
+
+```
+python run.py
+```
