@@ -1,3 +1,9 @@
 flask
 flask_restx
 flask_cors
+elasticsearch
+plotly
+elasticsearch_dsl
+pandas
+python-keycloak
+statsmodels
