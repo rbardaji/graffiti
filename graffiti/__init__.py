@@ -3,6 +3,7 @@ from flask_restx import Api
 from .figure_ns import api as figure_api
 # from .admin_figure_ns import api as admin_figure_api
 from .data_ns import api as data_api
+from .vocabulary_ns import api as vocabulary_api
 
 authorizations = {
     'apikey': {
@@ -18,3 +19,4 @@ api = Api(authorizations=authorizations, title="Graffiti", version="0.1",
 api.add_namespace(figure_api)
 # api.add_namespace(admin_figure_api)
 api.add_namespace(data_api)
+api.add_namespace(vocabulary_api)

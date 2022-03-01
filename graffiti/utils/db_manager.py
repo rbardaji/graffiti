@@ -1,4 +1,5 @@
 import os
+import stat
 import pandas as pd
 
 from elasticsearch import Elasticsearch, exceptions
@@ -11,7 +12,7 @@ from config import (elastic_host, data_index_r, data_index_h, data_index_2h,
                     data_index_d, data_index_2d, data_index_3d, data_index_4d,
                     data_index_5d, data_index_6d, data_index_10d,
                     data_index_15d, data_index_m, max_plot_points, df_folder,
-                    metadata_index)
+                    metadata_index, vocabulary_index)
 
 
 def data_ingestion(index_name, data):
@@ -775,5 +776,62 @@ def get_metadata_id(platform_code):
         }
         status_code = 503
 
+    elastic.close()
+    return response, status_code
+
+
+def get_vocabulary(platform_code: str):
+    """
+    Get the vocabulary of the parameter acronyms for a given platform_code
+
+    Parameters
+    ----------
+        platform_code: str
+            Platform code
+    
+    Returns
+    -------
+        (response, status_code): (dict, int)
+            The response is a dict with keys: status, message and result.
+                The status is a bool that indicates that data is found.
+                The message is a str with comments for the user.
+                The result is a list with a dict. The key of the dict is the
+                platform_code and the value is the vocabulary.
+            The status_code is 200 - found, 204 - not found or 503 -
+            connection error
+    """
+    elastic = Elasticsearch(elastic_host)
+
+    try:
+        response = elastic.get(vocabulary_index, platform_code)
+        if response.get('found'):
+            response = {
+                'status': True,
+                'message': f'Vocabulary from {platform_code}',
+                'result': [{platform_code: response['_source']}]
+            }
+            status_code = 200
+        else:
+            response = {
+                'status': False,
+                'message': 'Vocabulary not found',
+                'result': []
+            }
+            status_code = 204
+
+    except exceptions.NotFoundError:
+            response = {
+                'status': False,
+                'message': 'Vocabulary not found',
+                'result': []
+            }
+            status_code = 204
+    except exceptions.ConnectionError:
+        response = {
+            'status': False,
+            'message': 'Internal error. Unable to connect to DB',
+            'result': []
+        }
+        status_code = 503
     elastic.close()
     return response, status_code
