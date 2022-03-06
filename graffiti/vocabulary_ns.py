@@ -18,5 +18,4 @@ class GetVocabulary(Resource):
         """
         Understand the acronyms of the parameters used on the input platform
         """
-
         return get_vocabulary(platform_code)

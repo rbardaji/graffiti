@@ -1,18 +1,23 @@
 import os
-import stat
+import glob
 import pandas as pd
+import json
+import requests
+import datetime
 
 from elasticsearch import Elasticsearch, exceptions
 from elasticsearch_dsl import Search, A
+from xml.etree import ElementTree as ET
 
 from .helper import index_name
 
 from config import (elastic_host, data_index_r, data_index_h, data_index_2h,
                     data_index_3h, data_index_6h, data_index_8h, data_index_12h,
                     data_index_d, data_index_2d, data_index_3d, data_index_4d,
-                    data_index_5d, data_index_6d, data_index_10d,
+                    data_index_5d, data_index_6d, data_index_10d, api_index,
                     data_index_15d, data_index_m, max_plot_points, df_folder,
-                    metadata_index, vocabulary_index)
+                    metadata_index, vocabulary_index, fig_folder, files_folder,
+                    files_url)
 
 
 def data_ingestion(index_name, data):
@@ -419,9 +424,34 @@ def get_df(platform_code, parameter, rule, depth_min=None, depth_max=None,
     return df
 
 
-def get_metadata():
+def get_metadata(platform_code: str=None, parameter: str=None,
+                 depth_min: float=None, depth_max: float=None,
+                 time_min: str=None, time_max: str=None, qc: int=None):
     """
     Get a list of the avialable platform_codes (the ID of the metadata resurces)
+
+    Parameters
+    ----------
+        platform_code: str
+            Platform code
+        parameter: str
+            Variable to add to the DataFrame.
+        depth_min: float
+            Minimum depth of the measurement.
+        depth_max: float
+            Maximum depth of the measurement.
+        time_min: str
+            Minimum date and time of the measurement. A generic ISO datetime
+            parser, where the date must include the year at a minimum, and the
+            time (separated by T), is optional.
+            Examples: yyyy-MM-dd'T'HH:mm:ss.SSSZ or yyyy-MM-dd.
+        time_max: str
+            Maximum date and time of the measurement. A generic ISO datetime
+            parser, where the date must include the year at a minimum, and the
+            time (separated by T), is optional.
+            Examples: yyyy-MM-dd'T'HH:mm:ss.SSSZ or yyyy-MM-dd.
+        qc: int
+            Quality Flag value of the measurement.
 
     Returns
     -------
@@ -430,8 +460,10 @@ def get_metadata():
                 The status is a bool that indicates that data is found.
                 The message is a str with comments for the user.
                 The result is a list with the platform_code's.
-            The status_code is 200 - found or 503 - connection error
+            The status_code is 200 - found, 204 - Not found or
+            503 - connection error
     """
+
     elastic = Elasticsearch(elastic_host)
 
     try:
@@ -439,28 +471,37 @@ def get_metadata():
 
         elastic_search = elastic_search.source([])  # only get ids
         ids = [h.meta.id for h in elastic_search.scan()]
-        elastic.close()
-        if ids:
+
+        # Only return the platform code if it contains data
+        platform_code_list = []
+        for platform_code in ids:
+            response, status_code = get_data_count('M', platform_code,
+                                                   parameter, depth_min,
+                                                   depth_max, time_min,
+                                                   time_max, qc)
+            if status_code == 200 and response['result'][0] > 0:
+                platform_code_list.append(platform_code)
+        if platform_code_list:
             response = {
                 'status': True,
                 'message': 'List of platform codes',
-                'result': ids
+                'result': platform_code_list
             }
             status_code = 200
         else:
             response = {
                 'status': False,
                 'message': 'List of platform codes - empty',
-                'result': ids
+                'result': []
             }
-            status_code = 200
+            status_code = 204
     except exceptions.NotFoundError:
             response = {
                 'status': False,
                 'message': 'List of platform codes - empty',
-                'result': ids
+                'result': []
             }
-            status_code = 200
+            status_code = 204
     except exceptions.ConnectionError:
         response = {
             'status': False,
@@ -468,6 +509,7 @@ def get_metadata():
             'result': []
         }
         status_code = 503
+    elastic.close()
     return response, status_code
 
 
@@ -721,7 +763,7 @@ def get_data_count(rule, platform_code=None, parameter=None, depth_min=None,
     return response, status_code
 
 
-def get_metadata_id(platform_code):
+def get_metadata_id(platform_code: str):
     """
     Get the metadata values from the input platform_code (the ID).
 
@@ -835,3 +877,848 @@ def get_vocabulary(platform_code: str):
         status_code = 503
     elastic.close()
     return response, status_code
+
+
+def post_data(rule: str, data: dict):
+    """
+    Add data to the database.
+
+    Parameters
+    ----------
+        rule: str
+            Options - M, 15D, 10D, 6D, 5D, 4D, 3D, 2D, D, 12H, 8H, 6H, 3H, 2H, H
+        data: dict
+            The keys of data are: 'platform_code', 'parameter', 'time', 'lat',
+            'lon', 'depth', 'value', 'qc', 'time_qc', 'lat_qc', 'lon_qc' and
+            'deth_qc'
+    
+    Return
+    --------
+        (response, status_code): (dict, int)
+            The response is a dict with 3 keys:
+                'status': True,
+                'message': 'Created'
+                'result': [{data_id: the_inout_data}]
+            The status_code is always 201 (created)
+    """
+    elastic = Elasticsearch(elastic_host)
+
+    data_id = f"{data['platform_code']}_{data['parameter']}_{data['depth']}" + \
+        f"_{data['time'].replace(' ', '_')}"
+
+    elastic.index(index=index_name(rule), id=data_id, body=data)
+
+    response = {
+        'status': True,
+        'message': 'Created',
+        'result': [{data_id: data}]
+    }
+    status_code = 201
+
+    return response, status_code
+
+
+def delete_data(rule: str, data_id: str):
+    """
+    Delete data from a given rule and id
+
+    Parameters
+    ----------
+        rule: str
+            Options - M, 15D, 10D, 6D, 5D, 4D, 3D, 2D, D, 12H, 8H, 6H, 3H, 2H, H
+        data_id: dict
+            Id of the data document
+    
+    Returns
+    -------
+        status_code: int
+    """
+    elastic = Elasticsearch(elastic_host)
+
+    try:
+        response = elastic.delete(index=index_name(rule), id=data_id)
+
+        if response['result'] == 'deleted':
+            status_code = 202
+        else:
+            status_code = 204
+
+    except exceptions.NotFoundError:
+        status_code = 204
+    except exceptions.ConnectionError:
+        status_code = 503
+    elastic.close()
+    return response, status_code
+
+
+def post_metadata(platform_code: str, metadata: dict):
+    """
+    Add the metadata dictionary to the Elasticsearch. The ID of the document is
+    the platform code.
+
+    Parameters
+    ----------
+        platform_code: str
+            Platform code. ID of the document (metadata) to add.
+        metadata: dict
+            Document to add to elasticsearch.
+    
+    Returns
+    -------
+        (response, status_code): (dict, int)
+            response is a dictionary with the following keys:
+                'status': True,
+                'message': 'Added',
+                'result': It is a list with a dict. The key of the dict is the
+                    input platform_code and the value is the input metadata
+            status_code is always 201, (Added)
+    """
+    # Delete all metadata_map figures
+    #Loop Through the folder projects all files and deleting them one by one
+    for file_map in glob.glob(f'{fig_folder}/metadata_map*'):
+        os.remove(file_map)
+
+    elastic = Elasticsearch(elastic_host)
+
+    elastic.index(metadata_index, id=platform_code, body=metadata)
+
+    response = {
+        'status': True,
+        'message': 'Added',
+        'result': [{platform_code: metadata}]
+    }
+    status_code = 201
+    elastic.close()
+
+    return response, status_code
+
+
+def put_metadata(platform_code, metadata):
+    """
+    Update a metadata document.
+
+    Parameters
+    ----------
+        platform_code: str
+            Platform code. ID of the document (metadata) to add.
+        metadata: dict
+            Document to add to elasticsearch.
+
+    Returns
+    -------
+        (response, status_code): (dict, int)
+            response is a dictionary with the following keys:
+                'status': True,
+                'message': 'Added',
+                'result': It is a list with a dict. The key of the dict is the
+                    input platform_code and the value is the updated metadata
+            status_code is:
+                201 - Updated
+                204 - Metadata not found
+                406 - Bad payload (input metadata)
+                503 - Connection error with the DB
+    """
+    # Delete all metadata_map figures
+    #Loop Through the folder projects all files and deleting them one by one
+    for file_map in glob.glob(f'{fig_folder}/metadata_map*'):
+        os.remove(file_map)
+
+
+    upload_metadata = {'doc': metadata}
+
+    elastic = Elasticsearch(elastic_host)
+    try:
+        response = elastic.update(
+            index=metadata_index, id=platform_code, body=upload_metadata)
+        if response['result'] == 'updated':
+            response = elastic.get(index=metadata_index, id=platform_code)
+            response = {
+                'status': True,
+                'message': 'Updated',
+                'result': [{platform_code: response['_source']}]
+            }
+            status_code = 201
+
+        elif response['result'] == 'noop':
+            # Comprobar esto
+            response = elastic.get(index=metadata_index, id=platform_code)
+            response = {
+                'status': False,
+                'message': 'Metadata not updated',
+                'result': [{platform_code: response['_source']}]
+            }
+            status_code = 204
+    except exceptions.NotFoundError:
+        response = {
+            'status': False,
+            'message': 'Platform code not found',
+            'result': []
+        }
+        status_code = 204
+    except exceptions.RequestError:
+        response =  {
+            'status': False,
+            'message': 'Not Acceptable. Bad metadata payload',
+            'result': []
+        }
+        status_code = 406
+    except exceptions.ConnectionError:
+        response =   {
+            'status': False,
+            'message': 'Internal error. Unable to connect to DB',
+            'result': []
+        }
+        status_code = 503
+
+    elastic.close()
+    return response, status_code
+
+def delete_metadata(platform_code):
+    """
+    Delete a metadata document from elasticsearch.
+    The input platform_code is the ID of the document.
+
+    Parameters
+    ----------
+        platform_code: str
+            Platform code. ID of the document (metadata) to add.
+
+    Returns
+    -------
+        status_code: int
+            202 - Deleted
+            204 - Metadata not found
+            503 - Connection error with the DB
+    """
+    elastic = Elasticsearch(elastic_host)
+
+    try:
+        response = elastic.delete(index=metadata_index, id=platform_code)
+        if response['result'] == 'deleted':
+            status_code = 202
+    except exceptions.NotFoundError:
+        status_code = 204
+    except exceptions.ConnectionError:
+        status_code = 503
+    elastic.close()
+    return status_code
+
+
+def get_doi(user):
+    """
+    Update the available DOI numbers of an user
+    """
+    try:
+        elastic = Elasticsearch(elastic_host)
+
+        # Search for user
+        search_body = {
+            'query': {
+                'match': {
+                    'user': user}}}
+
+        response = elastic.search(index='emso-doi', body=search_body)
+    except:
+        return {
+            'status': False,
+            'message': 'API cannot access to the DB',
+            'result': []
+        }, 502
+
+    if response['hits']['hits']:
+        num_doi = response['hits']['hits'][0]['_source']['num_doi']
+    else:
+        num_doi = 0
+
+    return {
+        'status': True,
+        'message': 'Number of DOIs to create',
+        'result': num_doi
+        }, 201
+
+
+def put_doi(user, num_doi):
+    """
+    Update the available DOI numbers of an user
+    """
+    elastic = Elasticsearch(elastic_host)
+
+    # Search for user
+    search_body = {
+        'query': {
+            'match': {
+                'user': user}}}
+    
+    response = elastic.search(index='emso-doi', body=search_body)
+    if response['hits']['hits']:
+        user_id = response['hits']['hits'][0]['_id']
+    else:
+        user_id = None
+
+    body = {
+        'user': user,
+        'num_doi': num_doi
+    }
+
+    elastic.index('emso-doi', id=user_id, body=body)
+
+    return {
+        'status': True,
+        'message': f'Available DOIs for {user}: {num_doi}',
+        'result': num_doi
+        }, 201
+
+
+def post_doi(user, document):
+    """
+    Create a DOI
+    """
+    elastic = Elasticsearch(elastic_host)
+
+    # Search for available DOIs
+    # Search for user
+    search_body = {
+        'query': {
+            'match': {
+                'user': user}}}
+    
+    response = elastic.search(index='emso-doi', body=search_body)
+    if response['hits']['hits']:
+        user_id = response['hits']['hits'][0]['_id']
+        num_doi = int(response['hits']['hits'][0]['_source']['num_doi'])
+    else:
+        num_doi = 0
+
+    if num_doi > 0:
+
+        # data = json.dumps(json.load(open(document)))
+        data = json.dumps(document)
+
+        headers = {
+            'Content-Type': 'application/vnd.api+json',
+        }
+
+        response = requests.post('https://api.test.datacite.org/dois', headers=headers, data=data,
+            auth=('emso.emso', 'cmo@EMSO!'))
+
+        if response.status_code == 403:
+            return {
+                'status': False,
+                'message': f'datacite.org: You are not authorized to access this resource',
+                'result': []
+            }, 403
+
+        # Decrementar un numero de doi
+        body = {
+            'user': user,
+            'num_doi': num_doi - 1
+        }
+        elastic.index('emso-doi', id=user_id, body=body)
+
+        return {
+            'status': True,
+            'message': f'Available DOIs for {user}: {num_doi - 1}',
+            'result': response.json()
+        }, 201
+    else:
+        return {
+            'status': False,
+            'message': f'Available DOIs for {user}: {num_doi}',
+            'result': []
+        }, 403
+
+
+def get_pid(email):
+    """
+    Get PIDs from email
+    """
+    elastic = Elasticsearch(elastic_host)
+
+    # Search for user
+    search_body = {
+        'size': 1000,
+        'query': {
+            'match': {
+                'email': email}}}
+
+    try:
+        response = elastic.search(index='emso-pid', body=search_body)
+    except exceptions.NotFoundError:
+        # Index does not exist because is empty
+        return {
+            'status': False,
+            'message': f'Email {email} not found',
+            'result': []
+        }, 204
+    pid_list = []
+    if response['hits']['hits']:
+        
+        for hit in response['hits']['hits']:
+            try:
+                if hit['_source']['email'] == email:
+                    pid_list.append(hit['_source']['filename'])
+            except KeyError:
+                pass
+
+    if pid_list:
+        return {
+            'status': True,
+            'message': f'List of files from {email}',
+            'result': pid_list
+        }, 201
+    else:
+        return {
+            'status': False,
+            'message': f'Email {email} not found',
+            'result': []
+        }, 204
+
+
+def add_values_v2(payload, mail, DOI=False):
+    PID = hash.md5(repr(payload).encode()).hexdigest()
+    payload = json.loads(json.dumps(payload))
+
+    # TAGS:
+    html = ET.Element('html')
+    head = ET.Element('head')
+    style = ET.Element('style')
+    body = ET.Element('body')
+    principal_div = ET.Element('div', attrib={'class': 'principal'})
+    toolbar_div = ET.Element('div', attrib={'class': 'toolbar'})
+    row1_div = ET.Element('div', attrib={'class': 'row1'})
+    row2_div = ET.Element('div', attrib={'class': 'row2'})
+    row3_div = ET.Element('div', attrib={'class': 'row3'})
+    emso_a = ET.Element('a',
+                        attrib={'target': '_blank', 'href': 'http://emso.eu/', 'target': '_blank',
+                                'href': 'https://data.emso.eu/home'})
+    emso_logo = ET.Element('img', attrib={'src': 'http://emso.eu/wp-content/uploads/2018/03/logo-w-150.png'})
+    title_div = ET.Element('div', attrib={'class': 'title'})
+    title = ET.Element('h1', attrib={'style': 'padding-top: 1em;'})
+    subtitle = ET.Element('h2')
+    hr = ET.Element('hr')
+    content_div = ET.Element('div', attrib={'class': 'content'})
+    link_div = ET.Element('div', attrib={'style': 'margin-left: 3em; padding-top: 1em;'})
+    link_h3 = ET.Element('h3')
+    link_a = ET.Element('a',
+                        attrib={'href': payload["resource"],
+                                "target": "_blank"})
+    information = ET.Element('h3', attrib={'style': 'margin-left: 3em; padding-top: 1em;'})
+    table = ET.Element('table', attrib={'class': 'styled-table'})
+    thead = ET.Element('thead')
+    thead_tr = ET.Element('tr')
+    thead_th1 = ET.Element('th', attrib={'style': 'border-right: 2px solid rgb(255, 255, 255)'})
+    thead_th2 = ET.Element('th')
+    tbody = ET.Element('tbody')
+
+    version_tr = ET.Element('tr', attrib={'class': 'active-row'})
+    version_td1 = ET.Element('td')
+    version_td2 = ET.Element('td')
+
+    user_tr = ET.Element('tr')
+    user_td1 = ET.Element('td')
+    user_td2 = ET.Element('td')
+
+    mail_tr = ET.Element('tr', attrib={'class': 'active-row'})
+    mail_td1 = ET.Element('td')
+    mail_td2 = ET.Element('td')
+
+    description_tr = ET.Element('tr')
+    description_td1 = ET.Element('td')
+    description_td2 = ET.Element('td')
+
+    name_identifier_tr = ET.Element('tr', attrib={'class': 'active-row'})
+    name_identifier_td1 = ET.Element('td')
+    name_identifier_td2 = ET.Element('td')
+
+    identifier_schema_tr = ET.Element('tr')
+    identifier_schema_td1 = ET.Element('td')
+    identifier_schema_td2 = ET.Element('td')
+
+    affiliation_tr = ET.Element('tr', attrib={'class': 'active-row'})
+    affiliation_td1 = ET.Element('td')
+    affiliation_td2 = ET.Element('td')
+
+    affiliation_identifier_tr = ET.Element('tr')
+    affiliation_identifier_td1 = ET.Element('td')
+    affiliation_identifier_td2 = ET.Element('td')
+
+    affiliation_scheme_tr = ET.Element('tr', attrib={'class': 'active-row'})
+    affiliation_scheme_td1 = ET.Element('td')
+    affiliation_scheme_td2 = ET.Element('td')
+
+    title_tr = ET.Element('tr')
+    title_td1 = ET.Element('td')
+    title_td2 = ET.Element('td')
+
+    description_additional_tr = ET.Element('tr', attrib={'class': 'active-row'})
+    description_additional_td1 = ET.Element('td')
+    description_additional_td2 = ET.Element('td')
+
+    minting_div = ET.Element('div', attrib={'class': 'minting'})
+    minting_h3 = ET.Element('h4')
+    minting_a = ET.Element('a',
+                           attrib={'class': 'doiMinting', 'target': '_blank',
+                                   'href': 'https://data.emso.eu/doi-minting?href=' + PID})
+
+    # Append elements
+    html.append(head)
+    head.append(style)
+    html.append(body)
+    body.append(principal_div)
+    principal_div.append(toolbar_div)
+    toolbar_div.append(row1_div)
+    row1_div.append(emso_a)
+    emso_a.append(emso_logo)
+    toolbar_div.append(row2_div)
+    toolbar_div.append(row3_div)
+    principal_div.append(content_div)
+    content_div.append(title_div)
+    title_div.append(title)
+    title_div.append(subtitle)
+    content_div.append(hr)
+    content_div.append(link_div)
+    link_div.append(link_h3)
+    link_div.append(link_a)
+    content_div.append(information)
+    content_div.append(table)
+    table.append(thead)
+    thead.append(thead_tr)
+    thead_tr.append(thead_th1)
+    thead_tr.append(thead_th2)
+    table.append(tbody)
+    tbody.append(version_tr)
+    version_tr.append(version_td1)
+    version_tr.append(version_td2)
+    tbody.append(user_tr)
+    user_tr.append(user_td1)
+    user_tr.append(user_td2)
+    tbody.append(mail_tr)
+    mail_tr.append(mail_td1)
+    mail_tr.append(mail_td2)
+    tbody.append(description_tr)
+    description_tr.append(description_td1)
+    description_tr.append(description_td2)
+    tbody.append(name_identifier_tr)
+    name_identifier_tr.append(name_identifier_td1)
+    name_identifier_tr.append(name_identifier_td2)
+    tbody.append(identifier_schema_tr)
+    identifier_schema_tr.append(identifier_schema_td1)
+    identifier_schema_tr.append(identifier_schema_td2)
+    tbody.append(affiliation_tr)
+    affiliation_tr.append(affiliation_td1)
+    affiliation_tr.append(affiliation_td2)
+    tbody.append(affiliation_identifier_tr)
+    affiliation_identifier_tr.append(affiliation_identifier_td1)
+    affiliation_identifier_tr.append(affiliation_identifier_td2)
+    tbody.append(affiliation_scheme_tr)
+    affiliation_scheme_tr.append(affiliation_scheme_td1)
+    affiliation_scheme_tr.append(affiliation_scheme_td2)
+
+    if payload.get('titles'):
+        tbody.append(title_tr)
+        title_tr.append(title_td1)
+        title_tr.append(title_td2)
+        if len(payload["titles"]) == 1:
+            title_td1.text = "Title"
+            title_td2.text = payload["titles"][0]["title"]
+        else:
+            titles = []
+            types = []
+            for t in payload["titles"]:
+                titles.append(t["title"])
+                types.append(t["titleType"])
+            title_td1.text = ', '.join(types)
+            title_td2.text = ', '.join(titles)
+
+    if payload.get("descriptions"):
+        tbody.append(description_additional_tr)
+        description_additional_tr.append(description_additional_td1)
+        description_additional_tr.append(description_additional_td2)
+        if len(payload["descriptions"]) == 1:
+            description_additional_td1.text = payload["descriptions"][0]["descriptionType"] + " description"
+            description_additional_td2.text = payload["descriptions"][0]["description"]
+        else:
+            descriptions = []
+            types = []
+            for d in payload["descriptions"]:
+                descriptions.append(d["description"])
+                types.append(d["descriptionType"])
+            description_additional_td1.text = ', '.join(types)
+            description_additional_td2.text = ', '.join(descriptions)
+
+    if DOI:
+        content_div.append(minting_div)
+        minting_div.append(minting_h3)
+        minting_h3.append(minting_a)
+
+    style.text = """body {
+            background-color: #f4f8f9;
+        }
+
+        .principal {
+            background-color: #f4f8f9;
+            width: 100%;
+            height: max-content;
+            top: 0;
+            left: 0;
+            overflow-x: hidden;
+            position: absolute;
+        }
+
+        .title {
+            text-align: center;
+            margin-top: 115px;
+        }
+
+        .toolbar {
+            top: 0;
+            background-color: rgb(188, 194, 194);
+            min-height: 115px;
+            max-height: 115px;
+            align-content: center;
+            display: flex;
+            position: fixed;
+            width: 100%;
+        }
+
+        .row1 {
+            padding-left: 15%;
+            margin-top: 0.5vh;
+            width: 33%;
+            min-height: fit-content;
+            text-align: left;
+
+        }
+
+        .row2 {
+            margin-top: 4vh;
+            width: 33%;
+            min-height: fit-content;
+            text-align: center;
+
+        }
+
+        .row3 {
+            padding-right: 15%;
+            width: 33%;
+            text-align: right;
+            margin-top: 4vh;
+        }
+
+        .version {
+            color: rgb(0, 0, 0);
+            font-weight: 700;
+        }
+
+        .content {
+            background-color: white;
+            width: 70%;
+            margin-left: 15%;
+        }
+
+        .doiMinting {
+            font-weight: 400;
+            font-size: 1em;
+            text-decoration: none;
+            width: max-content;
+            padding: 15px 25px;
+            text-align: center;
+            cursor: pointer;
+            outline: none;
+            color: #fff;
+            background-color: rgb(24, 128, 30, 0.8);
+            border-radius: 8px;
+        }
+
+        .doiMinting:hover {
+            background-color: rgb(24, 128, 30, 0.4)
+        }
+
+        .minting {
+            margin-top: 3em;
+            text-align: center;
+            padding-bottom: 3em;
+        }
+
+        .padding {
+            margin-top: 3em;
+        }
+
+        .styled-table {
+            border-collapse: collapse;
+            margin: 25px 10%;
+            font-size: 1em;
+            font-family: sans-serif;
+            min-width: 80%;
+            align-items: center;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.15);
+        }
+
+        .styled-table thead tr {
+            background-color: rgb(24, 128, 30, 0.8);
+            color: #ffffff;
+            text-align: left;
+            padding: 0.5em;
+        }
+
+        td {
+            padding: 10px;
+            border-left: 1px solid rgb(24, 128, 30, 0.8);
+            border-right: 1px solid rgb(24, 128, 30, 0.8);
+        }
+
+        th {
+            padding: 15px;
+            font-size: 1em;
+            text-align: center;
+        }
+
+        .styled-table tbody tr {
+            border-bottom: 1px solid #dddddd;
+        }
+
+        .styled-table tbody tr:nth-of-type(even) {
+            background-color: #f3f3f3;
+        }
+
+        .styled-table tbody tr:last-of-type {
+            border-bottom: 2px solid rgb(24, 128, 30, 0.8);
+        }
+
+        .styled-table tbody tr.active-row {
+            font-weight: bold;
+            color: rgb(24, 128, 30, 0.8)rgb(24, 128, 30, 0.8);
+        }
+    """
+
+    title.text = "Created PID"
+    subtitle.text = PID
+    link_h3.text = "Link to the data:"
+    link_a.text = payload["resource"]
+    information.text = "Information:"
+    thead_th1.text = "User Claim"
+    thead_th2.text = "Value"
+    version_td1.text = 'Data portal version'
+    version_td2.text = payload["version"]
+    user_td1.text = "User"
+    user_td2.text = payload["creators"][0]["name"]
+    mail_td1.text = "Mail"
+    mail_td2.text = mail
+    description_td1.text = "Description"
+    description_td2.text = payload["resourceTypeGeneral"]
+    name_identifier_td1.text = "Name identifier"
+    name_identifier_td2.text = payload["creators"][0]["nameIdentifiers"][0]["nameIdentifier"]
+    identifier_schema_td1.text = "Identifier schema"
+    identifier_schema_td2.text = payload["creators"][0]["nameIdentifiers"][0]["nameIdentifierScheme"]
+    affiliation_td1.text = "Affiliation"
+    affiliation_td2.text = payload["creators"][0]["affiliation"][0]["name"]
+    affiliation_identifier_td1.text = "Affiliation identifier"
+    affiliation_identifier_td2.text = payload["creators"][0]["affiliation"][0][
+        "affiliationIdentifier"]
+    affiliation_scheme_td1.text = "Affiliation scheme"
+    affiliation_scheme_td2.text = payload["creators"][0]["affiliation"][0][
+        "affiliationIdentifierScheme"]
+
+    if DOI:
+        minting_a.text = "Create DOI from PID"
+
+    tree = ET.tostring(html, encoding='unicode', method='html')
+    sha256 = hash.sha256(tree.encode('utf-8')).hexdigest()
+    year = datetime.datetime.now().year
+
+    _file_path = files_folder + '/' + str(year) + '/' + sha256 + '.html'
+    os.makedirs(os.path.dirname(_file_path), exist_ok=True)
+
+    # with open(_file_path, 'w+') as f:
+    #     f.write(tree)
+
+    tree = ET.tostring(html, encoding='unicode', method='html')
+    # sha256 = hash.sha256(tree.encode('utf-8')).hexdigest()
+
+    # with open(file_path + '/' + str(year) + '/' + sha256 + '.html', 'w+') as f:
+    #     f.write(tree)
+
+    filename = files_folder + '/' + str(year) + '/' + PID + '.html'
+    with open(filename, 'w+') as f:
+        f.write(tree)
+
+    url_pid = files_url +  '/' + str(year) + '/' + PID + '.html'
+    # Guarda el filename en el elastic
+    elastic = Elasticsearch(elastic_host)
+    body = {
+        'email': mail,
+        'filename': url_pid
+    }
+    elastic.index('emso-pid', body=body)
+
+    return {
+        'status': True,
+        'message': 'Success',
+        'result': url_pid
+    }, 201
+
+def get_query_id(query_id):
+    elastic = Elasticsearch(elastic_host)
+
+    try:
+        response = elastic.get(api_index, query_id)
+        if response.get('found'):
+            return {
+                'status': True,
+                'message': 'Metadata information',
+                'result': [{query_id: response['_source']}]
+            }, 201
+        else:
+            return {
+                'status': False,
+                'message': 'Metadata not updated',
+                'result': []
+            }, 204
+    
+    except exceptions.NotFoundError:
+            return {
+                'status': False,
+                'message': 'Metadata not updated',
+                'result': []
+            }, 204
+    except exceptions.ConnectionError:
+        return {
+            'status': False,
+            'message': 'Internal error. Unable to connect to DB',
+            'result': []
+        }, 503
+
+
+def get_query(user_id, namespace=None):
+
+    elastic = Elasticsearch(elastic_host)
+    
+    search_body = {}
+    search_body['query'] = {'match': {'user': user_id}}
+
+    elastic_search = Search(
+        using=elastic, index=api_index).update_from_dict(search_body)
+
+    elastic_search = elastic_search.source(['url'])  # only get url
+    ids = []
+    for h in elastic_search.scan():
+        url = h.to_dict()['url']
+        if namespace:
+            if namespace in url:
+                ids.append(h.meta.id)
+        else:
+            ids.append(h.meta.id)
+
+    if ids:
+        return {
+            'status': True,
+            'message': f'List of queries from user {user_id}',
+            'result': ids
+        }, 201
+    else:
+        return {
+            'status': True,
+            'message': f'List of queries from user {user_id}- empty',
+            'result': ids
+        }, 201
+
