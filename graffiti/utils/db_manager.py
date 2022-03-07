@@ -8,6 +8,7 @@ import datetime
 from elasticsearch import Elasticsearch, exceptions
 from elasticsearch_dsl import Search, A
 from xml.etree import ElementTree as ET
+from flask import abort
 
 from .helper import index_name
 
@@ -1657,68 +1658,106 @@ def add_values_v2(payload, mail, DOI=False):
         'result': url_pid
     }, 201
 
-def get_query_id(query_id):
+
+def get_query_id(query_id: str):
+    """
+    Get the content of a query_id.
+
+    Parameters
+    ----------
+        query_id: str
+            ID from the query.
+
+    Returns
+    -------
+        (response, status_code): (dict, int)
+            The response is a dict with keys:
+                'status': True,
+                'message': 'The result is a list with a dict containing a 
+                    key (query_id) and a value (the content)',
+                'result': A list of dicts
+    """
     elastic = Elasticsearch(elastic_host)
 
     try:
         response = elastic.get(api_index, query_id)
         if response.get('found'):
-            return {
+            response = {
                 'status': True,
-                'message': 'Metadata information',
+                'message': 'The result is a list with a dict containing a ' + \
+                    'key (query_id) and a value (the content)',
                 'result': [{query_id: response['_source']}]
-            }, 201
+            }
+            status_code = 200
         else:
-            return {
-                'status': False,
-                'message': 'Metadata not updated',
-                'result': []
-            }, 204
+            abort(404, 'id_queryid not found')
     
     except exceptions.NotFoundError:
-            return {
-                'status': False,
-                'message': 'Metadata not updated',
-                'result': []
-            }, 204
+        abort(404, 'query_id not found')
     except exceptions.ConnectionError:
-        return {
-            'status': False,
-            'message': 'Internal error. Unable to connect to DB',
-            'result': []
-        }, 503
+        abort(503, 'Connection error with the DB')
+
+    elastic.close()
+    return response, status_code
 
 
-def get_query(user_id, namespace=None):
+def get_query(user_id: str, namespace: str=None):
+    """
+    Returns the previous API requests from the input user_id.
 
+    Parameters
+    ----------
+        user_id: str
+            User to search in the DB.
+        namestace: str
+            Namespace to search in the DB.
+
+    Returns
+    -------
+        (response, status_code): (dict, int)
+            response contains the following keys:
+                'status': True, or False if the list is empty.
+                'message': List of queries from user {user_id}
+                'result': List with the previous API requests.
+            The status_code is 200.
+        The function can abort the request with a code:
+            503 - Connection error with the DB
+    """
     elastic = Elasticsearch(elastic_host)
     
     search_body = {}
     search_body['query'] = {'match': {'user': user_id}}
 
-    elastic_search = Search(
-        using=elastic, index=api_index).update_from_dict(search_body)
+    try:
+        elastic_search = Search(
+            using=elastic, index=api_index).update_from_dict(search_body)
 
-    elastic_search = elastic_search.source(['url'])  # only get url
-    ids = []
-    for h in elastic_search.scan():
-        url = h.to_dict()['url']
-        if namespace:
-            if namespace in url:
+        elastic_search = elastic_search.source(['url'])  # only get url
+        ids = []
+        for h in elastic_search.scan():
+            url = h.to_dict()['url']
+            if namespace:
+                if namespace in url:
+                    ids.append(h.meta.id)
+            else:
                 ids.append(h.meta.id)
+
+        if ids:
+            response = {
+                'status': True,
+                'message': f'List of queries from user {user_id}',
+                'result': ids
+            }
+            status_code = 200
         else:
-            ids.append(h.meta.id)
+            response = {
+                'status': False,
+                'message': f'List of queries from user {user_id}- empty',
+                'result': ids
+            }
+            status_code = 200
+    except exceptions.ConnectionError:
+        abort(503, "Connection error with the DB")
 
-    if ids:
-        return {
-            'status': True,
-            'message': f'List of queries from user {user_id}',
-            'result': ids
-        }, 201
-    else:
-        return {
-            'status': True,
-            'message': f'List of queries from user {user_id}- empty',
-            'result': ids
-        }, 201
-
+    elastic.close()
+    return response, status_code

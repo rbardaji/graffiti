@@ -1,6 +1,14 @@
-from keycloak import KeycloakOpenID  # pip install python-keycloak
+import urllib3
+
+from keycloak import KeycloakOpenID, exceptions  # pip install python-keycloak
+from flask import abort
 
 from config import keycloak_config
+
+
+# Dissable the InsecureRequestWarning that is raised in the connection with the
+# AAI
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
 # Client configuration
@@ -53,7 +61,7 @@ def get_token_info(new_request):
                 }
             }
 
-            return response_object, 201
+            return response_object, 200
         
         except:
             response_object = {
@@ -71,33 +79,47 @@ def get_token_info(new_request):
         return response_object, 401
 
 
-def get_token(user, password):
+def get_token(user: str, password: str):
     """
-    Get token from keycloak.
+    Get the Authorization Token to use this API 
 
     Parameters
     ----------
         user: str
+            User name
         password: str
+            Password from the user
+
+    Returns
+    -------
+        (response, status_code): dict, int
+            response is a dict:
+                'status': True,
+                'message': 'The Authorization Token is in result[0]'
+                'result': List that contains the token in possition 0.
+            The status_code is 201.
+        The function also can abort the flask app with a code.
+        404 - Invalid email or password or
+        503 - Impossible to connect with the AAI
     """
     try:
-        # Get the token from the Keycloak
+
+        # Get the Token from the Keycloak
         auth_token = keycloak_openid.token(user, password)['access_token']
 
-        response_object = {
+        response = {
             'status': True,
-            'message': 'Success',
-            'result': auth_token
+            'message': 'The Authorization Token is in result[0]',
+            'result': [auth_token]
         }
-        return response_object, 201
+        status_code = 201
 
-    except Exception as e:
-        response_object = {
-            'status': False,
-            'message': 'Incorrect user or password',
-            'result': ''
-        }
-        return response_object, 401
+    except exceptions.KeycloakConnectionError:
+        abort(503, 'Impossible to connect with the AAI')
+    except exceptions.KeycloakAuthenticationError:
+        abort(401, 'Invalid email or password')
+
+    return response, status_code
 
 
 class Auth:
@@ -132,7 +154,10 @@ class Auth:
 
                 return response_object, 201
 
-            except:
+            except Exception as e:
+                print('Error:')
+                print(e)
+                
                 response_object = {
                     'status': False,
                     'message': 'Invalid token',

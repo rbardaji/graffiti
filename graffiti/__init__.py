@@ -17,22 +17,22 @@ authorizations = {
     'apikey': {
         'type': 'apiKey',
         'in': 'header',
-        'name': 'X-API-KEY'
+        'name': 'Authorization'
     }
 }
 
 
 api = Api(authorizations=authorizations, title="Graffiti", version="0.1",
-          description="Manage data and make interactive figures.")
+          description="API that allows you to search and obtain and visualize oceanographic data")
 
+api.add_namespace(user_api)
+api.add_namespace(metadata_api)
 api.add_namespace(figure_api)
 api.add_namespace(admin_figure_api)
 api.add_namespace(data_api)
 api.add_namespace(admin_data_api)
 api.add_namespace(vocabulary_api)
-api.add_namespace(metadata_api)
 api.add_namespace(admin_metadata_api)
 api.add_namespace(email_api)
 api.add_namespace(doi_api)
 api.add_namespace(hash_api)
-api.add_namespace(user_api)

@@ -35,3 +35,26 @@ def save_request(f):
             }, 500
 
     return decorated
+
+
+def token_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+
+        token = None
+
+        if 'Authorization' in request.headers:
+            token = request.headers['Authorization']
+
+        if not token:
+            abort(401, "Authorization Token is missing.")
+
+        # Check if token exists
+        _, status_code = get_token_info(request)
+
+        if status_code != 200:
+            abort(401, "Invalid token.")
+        
+        return f(*args, **kwargs)
+    
+    return decorated

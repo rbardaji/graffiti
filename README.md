@@ -18,7 +18,19 @@ cd graffiti
 pip install -r requirements.txt
 ```
 
-### 3. Run app (debug mode)
+### 3. Make tests
+
+With Linux:
+```cmd
+python -m unittest tests/test_user.py
+```
+
+With Windows:
+```cmd
+python -m unittest "tests\test_user.py"
+```
+
+### 4. Run app (debug mode)
 
 ```
 python run.py
