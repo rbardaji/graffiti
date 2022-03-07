@@ -490,26 +490,12 @@ def get_metadata(platform_code: str=None, parameter: str=None,
             }
             status_code = 200
         else:
-            response = {
-                'status': False,
-                'message': 'List of platform codes - empty',
-                'result': []
-            }
-            status_code = 204
+            abort(204, 'List of platform codes - empty')
     except exceptions.NotFoundError:
-            response = {
-                'status': False,
-                'message': 'List of platform codes - empty',
-                'result': []
-            }
-            status_code = 204
+            abort(204, 'List of platform codes - empty')
     except exceptions.ConnectionError:
-        response = {
-            'status': False,
-            'message': 'Internal error. Unable to connect to DB',
-            'result': []
-        }
-        status_code = 503
+        abort(503, 'Connection error with the DB')
+
     elastic.close()
     return response, status_code
 

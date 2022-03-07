@@ -1,8 +1,9 @@
 from flask_restx import Namespace, Resource, reqparse
 from flask import request
 
-from .utils.decorator import save_request
+from .utils.decorator import save_request, token_required
 from .utils.db_manager import get_metadata_id, get_metadata
+from .user_ns import user_response
 
 api = Namespace('metadata', description='Get the metadata information')
 
@@ -24,12 +25,14 @@ metadata_parser.add_argument('parameter', type=str, help='Parameter acronym')
 
 
 @api.route('')
-@api.response(200, 'Found')
 @api.response(204, 'No content. Platform code not found')
 @api.response(503, 'Internal error. Unable to connect to DB')
 class GetMetadata(Resource):
+    @api.doc(security='apikey')
+    @api.marshal_with(user_response, code=200, skip_none=True)
     @api.expect(metadata_parser)
     @save_request
+    @token_required
     def get(self):
         """
         Get metadata IDs (platform codes)
@@ -42,7 +45,8 @@ class GetMetadata(Resource):
         time_max = request.args.get("time_max")
         qc = request.args.get("qc")
 
-        return get_metadata(platform_code, parameter, depth_min, depth_max, time_min, time_max, qc)
+        return get_metadata(platform_code, parameter, depth_min, depth_max,
+                            time_min, time_max, qc)
 
 
 @api.route('/<string:platform_code>')
