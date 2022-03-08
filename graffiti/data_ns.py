@@ -1,10 +1,12 @@
 from flask_restx import Namespace, Resource, reqparse
 from flask import request
 
-from .utils.decorator import save_request
+from .utils.decorator import save_request, token_required
 from .utils.db_manager import get_data_count, get_df
+from .user_ns import user_response
 
-api = Namespace('data', description='Get data')
+api = Namespace('data',
+                description='Get data and stats related to the data values')
 
 
 data_parser = reqparse.RequestParser()
@@ -27,9 +29,15 @@ data_complete_parser.add_argument('parameter', type=str, help='Parameter acronym
 
 @api.route('/count/<string:rule>')
 @api.param('rule', 'Options: M, 15D, 10D, 6D, 5D, 4D, 3D, 2D, D, 12H, 8H, 6H, 3H, 2H, H, R')
-@api.response(200, 'Found')
+@api.response(204, 'Not found.')
+@api.response(401, 'Invalid email or password.')
+@api.response(503, 'Connection error with the DB.')
 class GetDataCount(Resource):
+    @api.doc(security='apikey')
+    @api.marshal_with(user_response, code=200, skip_none=True)
     @api.expect(data_complete_parser)
+    @save_request
+    @token_required
     @save_request
     def get(self, rule):
         """
@@ -51,9 +59,14 @@ class GetDataCount(Resource):
 @api.param('rule', 'Options: M, 15D, 10D, 6D, 5D, 4D, 3D, 2D, D, 12H, 8H, 6H, 3H, 2H, H, R')
 @api.param('platform_code', 'Platform code')
 @api.param('parameter', 'Parameter acronym')
-@api.response(200, 'Found')
+@api.response(204, 'Not found.')
+@api.response(401, 'Invalid email or password.')
+@api.response(503, 'Connection error with the DB.')
 class GetData(Resource):
+    @api.doc(security='apikey')
+    @api.marshal_with(user_response, code=200, skip_none=True)
     @api.expect(data_parser)
+    @token_required
     @save_request
     def get(self, rule, platform_code, parameter):
         """
