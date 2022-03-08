@@ -25,17 +25,18 @@ metadata_parser.add_argument('parameter', type=str, help='Parameter acronym')
 
 
 @api.route('')
-@api.response(204, 'No content. Platform code not found')
-@api.response(503, 'Internal error. Unable to connect to DB')
+@api.response(204, 'Not found.')
+@api.response(401, 'Invalid email or password.')
+@api.response(503, 'Connection error with the DB')
 class GetMetadata(Resource):
     @api.doc(security='apikey')
     @api.marshal_with(user_response, code=200, skip_none=True)
     @api.expect(metadata_parser)
-    @save_request
     @token_required
+    @save_request
     def get(self):
         """
-        Get metadata IDs (platform codes)
+        Get metadata IDs {platform_code}
         """
         platform_code = request.args.get("platform_code")
         parameter = request.args.get("parameter")
@@ -51,13 +52,15 @@ class GetMetadata(Resource):
 
 @api.route('/<string:platform_code>')
 @api.param('platform_code', 'Platform code')
-@api.response(201, 'Found')
-@api.response(204, 'No content. Platform code not found')
-@api.response(503, 'Internal error. Unable to connect to DB')
+@api.response(204, 'Not found.')
+@api.response(401, 'Invalid email or password.')
+@api.response(503, 'Connection error with the DB')
 class GetMetadataId(Resource):
+    @api.marshal_with(user_response, code=200, skip_none=True)
+    @token_required
     @save_request
     def get(self, platform_code):
         """
-        Get the metadata from the input platform
+        Get the metadata from the input {platform_code}
         """
         return get_metadata_id(platform_code)

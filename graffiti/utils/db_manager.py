@@ -464,7 +464,6 @@ def get_metadata(platform_code: str=None, parameter: str=None,
             The status_code is 200 - found, 204 - Not found or
             503 - connection error
     """
-
     elastic = Elasticsearch(elastic_host)
 
     try:
@@ -482,6 +481,7 @@ def get_metadata(platform_code: str=None, parameter: str=None,
                                                    time_max, qc)
             if status_code == 200 and response['result'][0] > 0:
                 platform_code_list.append(platform_code)
+
         if platform_code_list:
             response = {
                 'status': True,
@@ -589,7 +589,8 @@ def get_parameter(platform_code=None, depth_min=None, depth_max=None,
         connected = True
         try:
             elastic_search = Search(
-                using=elastic, index=index_name(rule)).update_from_dict(search_body)
+                using=elastic,
+                index=index_name(rule)).update_from_dict(search_body)
         except exceptions.ConnectionError:
             connected = False
             response = {
