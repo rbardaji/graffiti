@@ -3,7 +3,8 @@ import urllib3
 from keycloak import KeycloakOpenID, exceptions  # pip install python-keycloak
 from flask import abort
 
-from config import keycloak_config
+from config import (keycloak_config, test_token, data_portal_token, test_user,
+                    test_email, data_portal_user, data_portal_email)
 
 
 # Dissable the InsecureRequestWarning that is raised in the connection with the
@@ -31,7 +32,7 @@ def get_token_info(new_request):
     
     Returns
     -------
-        (response_object, status_code): (dict, int)
+        (response, status_code): (dict, int)
             The response_object contains the user information.
             The status_code is 200 if the token is valid and 401 if the token is
             invalid.
@@ -40,43 +41,54 @@ def get_token_info(new_request):
     auth_token = new_request.headers.get('Authorization')
 
     if auth_token:
-        try:
-            # Decode token with keyloak
-            KEYCLOAK_PUBLIC_KEY = keycloak_openid.public_key()
-            options = {"verify_signature": False, "verify_aud": False, "exp": True}
-            token_info = keycloak_openid.decode_token(
-                auth_token, key=KEYCLOAK_PUBLIC_KEY, options=options)
-
-            admin = 0
-            if '/api_admin' in token_info['groups']:
-                admin = 1
-
-            response_object = {
+        if auth_token == test_token:
+            response = {
                 'status': True,
                 'message': 'Success',
                 'result': {
-                    'user_id': token_info['preferred_username'],
-                    'email': token_info['email'],
-                    'admin': admin
+                    'user_id': test_user,
+                    'email': test_email,
+                    'admin': 0
                 }
             }
-
-            return response_object, 200
-        
-        except:
-            response_object = {
-                'status': False,
-                'message': 'Invalid token',
-                'result': []
+        elif auth_token == data_portal_token:
+            response = {
+                'status': True,
+                'message': 'Success',
+                'result': {
+                    'user_id': data_portal_user,
+                    'email': data_portal_email,
+                    'admin': 0
+                }
             }
-            return response_object, 401
+        else:
+            try:
+                # Decode token with keyloak
+                KEYCLOAK_PUBLIC_KEY = keycloak_openid.public_key()
+                options = {"verify_signature": False, "verify_aud": False, "exp": True}
+                token_info = keycloak_openid.decode_token(
+                    auth_token, key=KEYCLOAK_PUBLIC_KEY, options=options)
+
+                admin = 0
+                if '/api_admin' in token_info['groups']:
+                    admin = 1
+
+                response = {
+                    'status': True,
+                    'message': 'Success',
+                    'result': {
+                        'user_id': token_info['preferred_username'],
+                        'email': token_info['email'],
+                        'admin': admin
+                    }
+                }
+            
+            except:
+                abort(401, 'Invalid Token')
+        
+        return response, 200
     else:
-        response_object = {
-            'status': False,
-            'message': 'Provide a valid Token',
-            'result': []
-        }
-        return response_object, 401
+        abort(401, 'Provide a valid Authorization Token')
 
 
 def get_token(user: str, password: str):

@@ -4,6 +4,8 @@ import plotly
 import plotly.express as px
 import pandas as pd
 
+from flask import abort
+
 from config import fig_folder, fig_url, config_fig, mapbox_access_token
 from ..utils.db_manager import (good_rule, get_df, get_metadata, get_parameter,
                                 get_data_count, get_metadata_id)
@@ -241,9 +243,8 @@ def get_line(platform_code, parameter, depth_min=None, depth_max=None,
 
             response = {
                 'status': True,
-                'message': 'Working, please wait some minuts before access to ' + \
-                    f'the result link. Time series line plot of {parameter} ' + \
-                    f'from {platform_code}',
+                'message': 'Working, please wait some minuts before ' + \
+                    'access to the link from result[0].',
                 'result': [f'{fig_url}/{fig_name}.html']}
             status_code = 201
 
@@ -254,21 +255,15 @@ def get_line(platform_code, parameter, depth_min=None, depth_max=None,
             if path_fig:
                 response = {
                     'status': True,
-                    'message': f'Line plot from {platform_code} with ' + \
-                        f'parameter {parameter}',
-                    'result': [path_fig]}
+                    'message': 'Link to the figure in result[0]',
+                    'result': [f'{fig_url}/{fig_name}.html']}
                 status_code = 201
             else:
-                response = {
-                    'status': False,
-                    'message': f'Data not found',
-                    'result': []}
-                status_code = 204
+                abort(204, 'Data not found')
     else:
         response = {
             'status': True,
-            'message': f'Line plot from {platform_code} with parameter ' + \
-                f'{parameter}',
+            'message': 'Link to the figure in result[0]',
             'result': [f'{fig_url}/{fig_name}.html']}
         status_code = 201
 
@@ -406,9 +401,8 @@ def get_area(platform_code, parameter, depth_min=None, depth_max=None,
 
             response = {
                 'status': True,
-                'message': 'Working, please wait some minuts before access to ' + \
-                    f'the result link. Area plot of {parameter} from ' + \
-                    f'{platform_code}',
+                'message': 'Working, please wait some minuts before ' + \
+                    'access to the link from result[0].',
                 'result': [f'{fig_url}/{fig_name}.html']}
             status_code = 201
         else:
@@ -418,22 +412,16 @@ def get_area(platform_code, parameter, depth_min=None, depth_max=None,
             if path_fig:
                 response = {
                     'status': True,
-                    'message': f'Area plot from {platform_code} with ' + \
-                        f'parameter {parameter}',
-                    'result': [path_fig]}
+                    'message': 'Link to the figure in result[0]',
+                    'result': [f'{fig_url}/{fig_name}.html']}
                 status_code = 201
             else:
-                response = {
-                    'status': False,
-                    'message': f'Data not found',
-                    'result': []}
-                status_code = 204
+                abort(204, 'Data not found')
 
     else:
         response = {
             'status': True,
-            'message': f'Area plot from {platform_code} with parameter ' + \
-                f'{parameter}',
+            'message': 'Link to the figure in result[0]',
             'result': [f'{fig_url}/{fig_name}.html']}
         status_code = 201
 
@@ -631,10 +619,9 @@ def get_parameter_availability(parameter, depth_min=None, depth_max=None,
 
                 response = {
                     'status': True,
-                    'message': 'Working, please wait some minuts before access to ' + \
-                        f'the result link. {parameter} availability',
-                    'result': [f'{fig_url}/{fig_name}.html']
-                }
+                    'message': 'Working, please wait some minuts before ' + \
+                        'access to the link from result[0].',
+                    'result': [f'{fig_url}/{fig_name}.html']}
                 status_code = 201
             else:
                 path_fig = thread_parameter_availability(parameter,
@@ -646,28 +633,18 @@ def get_parameter_availability(parameter, depth_min=None, depth_max=None,
                 if path_fig:
                     response = {
                         'status': True,
-                        'message': f'{parameter} availability',
-                        'result': [path_fig]}
+                        'message': 'Link to the figure in result[0]',
+                        'result': [f'{fig_url}/{fig_name}.html']}
                     status_code = 201
                 else:
-                    response = {
-                        'status': False,
-                        'message': f'Data not found',
-                        'result': []}
-                    status_code = 204
+                    abort(204, 'Data not found')
         else:
-            response = {
-                'status': False,
-                'message': 'Data not founf',
-                'result': []
-            }
-            status_code = 204
+            abort(204, 'Data not found')
     else:
         response = {
             'status': True,
-            'message': f'{parameter} availability',
-            'result': [f'{fig_url}/{fig_name}.html']
-        }
+            'message': 'Link to the figure in result[0]',
+            'result': [f'{fig_url}/{fig_name}.html']}
         status_code = 201
 
     return response, status_code
@@ -985,23 +962,16 @@ def get_parameter_pie(rule, platform_code=None, depth_min=None, depth_max=None,
                                  config=config_fig, include_plotlyjs='cdn')
             response = {
                 'status': True,
-                'message': 'Platform pie',
-                'result': [f'{fig_url}/{fig_name}.html']
-            }
+                'message': 'Link to the figure in result[0]',
+                'result': [f'{fig_url}/{fig_name}.html']}
             status_code = 201
         else:
-            response = {
-                'status': False,
-                'message': 'No data available',
-                'result': []
-            }
-            status_code = 204
+            abort(204, 'Data not found')
     else:
         response = {
             'status': True,
-            'message': 'Platform pie',
-            'result': [f'{fig_url}/{fig_name}.html']
-        }
+            'message': 'Link to the figure in result[0]',
+            'result': [f'{fig_url}/{fig_name}.html']}
         status_code = 201
 
     return response, status_code
@@ -1175,12 +1145,7 @@ def get_map(rule, platform_code=None, parameter=None, depth_min=None,
             platform_codes = response['result']
 
         if not platform_codes:
-            response = {
-                'status': False,
-                'message': 'There are no platforms to generate the map',
-                'result': []
-            }
-            status_code = 204
+            abort(204, 'Data not found')
 
         latitudes = []
         longitudes = []
@@ -1240,7 +1205,7 @@ def get_map(rule, platform_code=None, parameter=None, depth_min=None,
     
     response = {
         'status': True,
-        'message': 'Map with the platform locations',
+        'message': 'Link to the figure in result[0]',
         'result': [f'{fig_url}/{fig_name}.html']
     }
     status_code = 201

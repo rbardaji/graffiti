@@ -5,8 +5,8 @@ from .services.figure_service import (get_line, get_platform_pie, get_area,
                                       get_parameter_availability, get_map,
                                       get_platform_availability, get_scatter,
                                       get_parameter_pie)
-from .utils.decorator import save_request
-
+from .utils.decorator import save_request, token_required
+from .user_ns import user_response
 
 api = Namespace('figure', description='Make figures')
 
@@ -54,13 +54,15 @@ advanced_parser.add_argument('template', type=str, help='Layout template',
 @api.route('/area/<string:platform_code>/<string:parameter>')
 @api.param('platform_code', 'Platform code')
 @api.param('parameter', 'Parameter acronym')
-@api.response(201, 'Created')
 @api.response(204, 'Data not found')
 @api.response(401, 'Invalid token')
-@api.response(500, 'Internal error. Unable to connect to the DB')
-class GetDeleteArea(Resource):
-    @save_request
+@api.response(503, 'Connection error with the DB')
+class GetArea(Resource):
+    @api.doc(security='apikey')
+    @api.marshal_with(user_response, code=201, skip_none=True)
     @api.expect(fig_parser)
+    @token_required
+    @save_request
     def get(self, platform_code, parameter):
         """
         Get an area plot
@@ -78,13 +80,15 @@ class GetDeleteArea(Resource):
 @api.route('/line/<string:platform_code>/<string:parameter>')
 @api.param('platform_code', 'Platform code')
 @api.param('parameter', 'Parameter acronym')
-@api.response(201, 'Created')
 @api.response(204, 'Data not found')
 @api.response(401, 'Invalid token')
-@api.response(500, 'Internal error. Unable to connect to the DB')
-class GetDeleteLine(Resource):
-    @save_request
+@api.response(503, 'Connection error with the DB')
+class GetLine(Resource):
+    @api.doc(security='apikey')
+    @api.marshal_with(user_response, code=201, skip_none=True)
     @api.expect(fig_parser)
+    @token_required
+    @save_request
     def get(self, platform_code, parameter):
         """
         Get a time series line plot
@@ -101,13 +105,15 @@ class GetDeleteLine(Resource):
 
 @api.route('/parameter_availability/<string:parameter>')
 @api.param('parameter', 'Parameter acronym')
-@api.response(201, 'Created')
 @api.response(204, 'Data not found')
 @api.response(401, 'Invalid token')
-@api.response(503, 'Internal error. Unable to connect to the DB')
+@api.response(503, 'Connection error with the DB')
 class GetParameterAvailability(Resource):
-    @save_request
+    @api.doc(security='apikey')
+    @api.marshal_with(user_response, code=201, skip_none=True)
     @api.expect(fig_parser)
+    @token_required
+    @save_request
     def get(self, parameter):
         """
         Get data availability from a parameter
@@ -124,7 +130,6 @@ class GetParameterAvailability(Resource):
 
 
 @api.route('/platform_availability/<string:platform_code>')
-
 @api.response(201, 'Created')
 @api.response(204, 'Data not found')
 @api.response(401, 'Invalid token')
@@ -149,12 +154,14 @@ class GetPlatformAvailability(Resource):
 
 @api.route('/parameter_pie/<string:rule>')
 @api.param('rule', 'Options: M, 15D, 10D, 6D, 5D, 4D, 3D, 2D, D, 12H, 8H, 6H, 3H, 2H, H, R')
-@api.response(201, 'Created')
 @api.response(204, 'Data not found')
 @api.response(401, 'Invalid token')
 @api.response(503, 'Internal error. Unable to connect to the DB')
 class GetFigParameterPie(Resource):
+    @api.doc(security='apikey')
+    @api.marshal_with(user_response, code=201, skip_none=True)
     @api.expect(platform_parser)
+    @token_required
     @save_request
     def get(self, rule):
         """
@@ -196,13 +203,17 @@ class GetFigPlatformPie(Resource):
 
 
 @api.route('/map/<string:rule>')
-@api.param('rule', 'Options: M, 15D, 10D, 6D, 5D, 4D, 3D, 2D, D, 12H, 8H, 6H, 3H, 2H, H, R')
-@api.response(201, 'Created')
+@api.param(
+    'rule',
+    'Options: M, 15D, 10D, 6D, 5D, 4D, 3D, 2D, D, 12H, 8H, 6H, 3H, 2H, H, R')
 @api.response(204, 'Data not found')
 @api.response(401, 'Invalid token')
-@api.response(503, 'Internal error. Unable to connect to the DB')
+@api.response(503, 'Connection error with the DB')
 class GetFigMap(Resource):
+    @api.doc(security='apikey')
+    @api.marshal_with(user_response, code=201, skip_none=True)
     @api.expect(complete_parser)
+    @token_required
     @save_request
     def get(self, rule):
         """
