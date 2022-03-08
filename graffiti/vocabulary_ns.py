@@ -4,6 +4,7 @@ from .utils.decorator import save_request, token_required
 from .utils.db_manager import get_vocabulary
 from .user_ns import user_response
 
+
 api = Namespace('vocabulary',
                 description='Understand the acronyms of the parameters used on platforms')
 
