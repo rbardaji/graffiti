@@ -1,0 +1,7 @@
+{
+  "issuer": "https://aai.emso.eu/auth/",
+    "realm": "EMSO",
+    "client_id": "DataPortal",
+    "client_secret": "291a5a7a-2807-4bad-8c13-3bb6fd708187",
+  "verify": false
+}

@@ -56,6 +56,7 @@ class GetMetadata(Resource):
 @api.response(401, 'Invalid email or password.')
 @api.response(503, 'Connection error with the DB')
 class GetMetadataId(Resource):
+    @api.doc(security='apikey')
     @api.marshal_with(user_response, code=200, skip_none=True)
     @token_required
     @save_request
@@ -63,4 +64,5 @@ class GetMetadataId(Resource):
         """
         Get the metadata from the input {platform_code}
         """
+
         return get_metadata_id(platform_code)
