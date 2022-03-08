@@ -1,6 +1,5 @@
 import datetime
 
-from elasticsearch import Elasticsearch
 from functools import wraps
 from flask import request, abort
 
