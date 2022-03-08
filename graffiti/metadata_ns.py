@@ -54,7 +54,7 @@ class GetMetadata(Resource):
 @api.param('platform_code', 'Platform code')
 @api.response(204, 'Not found.')
 @api.response(401, 'Invalid email or password.')
-@api.response(503, 'Connection error with the DB')
+@api.response(503, 'Connection error with the DB.')
 class GetMetadataId(Resource):
     @api.doc(security='apikey')
     @api.marshal_with(user_response, code=200, skip_none=True)

@@ -826,27 +826,13 @@ def get_vocabulary(platform_code: str):
             }
             status_code = 200
         else:
-            response = {
-                'status': False,
-                'message': 'Vocabulary not found',
-                'result': []
-            }
-            status_code = 204
+            abort(204, 'Vocabulary not found')
 
     except exceptions.NotFoundError:
-            response = {
-                'status': False,
-                'message': 'Vocabulary not found',
-                'result': []
-            }
-            status_code = 204
+            abort(204, 'Vocabulary not found')
     except exceptions.ConnectionError:
-        response = {
-            'status': False,
-            'message': 'Internal error. Unable to connect to DB',
-            'result': []
-        }
-        status_code = 503
+        abort(503, 'Connection error with the DB')
+
     elastic.close()
     return response, status_code
 
