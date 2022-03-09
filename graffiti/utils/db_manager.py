@@ -38,14 +38,14 @@ def data_ingestion(index_name, data):
             201 if data is ingested, 500 if Connection Error
     """
     status = 500
+    elastic = Elasticsearch(elastic_host)
     try:
-        elastic = Elasticsearch(elastic_host)
-        elastic.index(index=index_name, body=data)
+        elastic.index(index=index_name, document=data)
 
         status = 201
     except exceptions.ConnectionError:
         status = 500
-    
+    elastic.close()
     return status
 
 
@@ -176,7 +176,7 @@ def get_data(search_string=None, rule=None):
                 result field.
                 The message is a str with comments for the user.
                 The reslut is a list of the ids of data.
-            The status_code is 200 (found) or 204 (not found).
+            The status_code is 200 (found) or 404 (not found).
     """
     elastic = Elasticsearch(elastic_host)
 
@@ -241,12 +241,8 @@ def get_data(search_string=None, rule=None):
         }
         status_code = 200
     else:
-        response = {
-            'status': False,
-            'message': 'List of data records - empty',
-            'result': ids
-        }
-        status_code = 204
+        elastic.close()
+        abort(404, 'Data not found')
 
     elastic.close()
 
@@ -864,7 +860,7 @@ def post_data(rule: str, data: dict):
     data_id = f"{data['platform_code']}_{data['parameter']}_{data['depth']}" + \
         f"_{data['time'].replace(' ', '_')}"
 
-    elastic.index(index=index_name(rule), id=data_id, body=data)
+    elastic.index(index=index_name(rule), id=data_id, document=data)
 
     response = {
         'status': True,
@@ -872,7 +868,7 @@ def post_data(rule: str, data: dict):
         'result': [{data_id: data}]
     }
     status_code = 201
-
+    elastic.close()
     return response, status_code
 
 
@@ -890,6 +886,9 @@ def delete_data(rule: str, data_id: str):
     Returns
     -------
         status_code: int
+            202 - Deleted.
+            404 - Data not found.
+            503 - Connection error with the DB
     """
     elastic = Elasticsearch(elastic_host)
 
@@ -899,12 +898,15 @@ def delete_data(rule: str, data_id: str):
         if response['result'] == 'deleted':
             status_code = 202
         else:
-            status_code = 204
+            elastic.close()
+            abort(404, 'Data not found.')
 
     except exceptions.NotFoundError:
-        status_code = 204
+        elastic.close()
+        abort(404, 'Data not found.')
     except exceptions.ConnectionError:
-        status_code = 503
+        elastic.close()
+        abort(404, 'Connection error with the DB.')
     elastic.close()
     return response, status_code
 
@@ -1096,9 +1098,29 @@ def get_doi(user):
         }, 201
 
 
-def put_doi(user, num_doi):
+def put_doi(user: str, num_doi: int):
     """
-    Update the available DOI numbers of an user
+    Update the available DOI numbers of an user.
+
+    Parameters
+    ----------
+        user: str
+            User to update the number of available DOIs.
+        num_doi: int
+            Number of available DOIs.
+
+    Returns
+    -------
+        (response, status_code): (dict, int)
+            response is a dict with the following keys:
+                'status': True,
+                'message': 'The available DOIs for the user are in result[0]'
+                'result': The available DOIs are in result[0]
+        status_code is 201.
+        If user is not found, the function aborts Flask with:
+            204 - User not found.
+            503 - Connection error with the DB.
+
     """
     elastic = Elasticsearch(elastic_host)
 
@@ -1107,25 +1129,32 @@ def put_doi(user, num_doi):
         'query': {
             'match': {
                 'user': user}}}
-    
-    response = elastic.search(index='emso-doi', body=search_body)
-    if response['hits']['hits']:
-        user_id = response['hits']['hits'][0]['_id']
-    else:
-        user_id = None
+    try:
+        response = elastic.search(index='emso-doi', body=search_body)
+        if response['hits']['hits']:
+            user_id = response['hits']['hits'][0]['_id']
+        else:
+            user_id = None
 
-    body = {
-        'user': user,
-        'num_doi': num_doi
-    }
+        body = {
+            'user': user,
+            'num_doi': num_doi
+        }
 
-    elastic.index('emso-doi', id=user_id, body=body)
+        elastic.index('emso-doi', id=user_id, body=body)
+    except exceptions.NotFoundError:
+            abort(204, 'User not found')
+    except exceptions.ConnectionError:
+        abort(503, 'Connection error with the DB')
 
-    return {
+    response = {
         'status': True,
-        'message': f'Available DOIs for {user}: {num_doi}',
-        'result': num_doi
-        }, 201
+        'message': 'The available DOIs for the user are in result[0]',
+        'result': [num_doi]
+        }
+    status_code = 201
+
+    return response, status_code
 
 
 def post_doi(user, document):

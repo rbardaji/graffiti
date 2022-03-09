@@ -93,3 +93,34 @@ def token_required(f):
         return f(*args, **kwargs)
     
     return decorated
+
+
+def admin_token_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        
+        token = None
+
+        if 'Authorization' in request.headers:
+            token = request.headers['Authorization']
+
+        if not token:
+            abort(401, "Admin Token is missing.")
+        elif token == data_portal_token:
+            status_code = 200
+        elif token == test_token:
+            status_code = 200
+        else:
+            # Check if token exists
+            token_info, status_code = get_token_info(request)
+
+            if status_code != 200:
+                abort(401, "Invalid token.")
+
+            admin = token_info.get('admin')
+            if not admin or admin == 0:
+                abort(401, "Admin Token required.")
+
+        return f(*args, **kwargs)
+
+    return decorated

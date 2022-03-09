@@ -36,7 +36,6 @@ class GetDataCount(Resource):
     @api.doc(security='apikey')
     @api.marshal_with(user_response, code=200, skip_none=True)
     @api.expect(data_complete_parser)
-    @save_request
     @token_required
     @save_request
     def get(self, rule):

@@ -48,7 +48,7 @@ def get_token_info(new_request):
                 'result': {
                     'user_id': test_user,
                     'email': test_email,
-                    'admin': 0
+                    'admin': 1
                 }
             }
         elif auth_token == data_portal_token:

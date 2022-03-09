@@ -1,8 +1,10 @@
 from flask_restx import Namespace, Resource, reqparse, fields
 from flask import request
 
-from .utils.decorator import save_request
+from .utils.decorator import save_request, admin_token_required
 from .utils.db_manager import post_data, delete_data
+from .user_ns import user_response
+
 
 api = Namespace('admin_data', description='Data operations')
 
@@ -22,11 +24,13 @@ data_payload = api.model('data_payload', {
     'qc': fields.Integer(required=True)})
 
 
-@api.route('/data/<string:rule>')
+@api.route('/<string:rule>')
 @api.param('rule', 'Options: M, 15D, 10D, 6D, 5D, 4D, 3D, 2D, D, 12H, 8H, 6H, 3H, 2H, H, R')
-@api.response(201, 'Added')
 class PostData(Resource):
+    @api.doc(security='apikey')
+    @api.marshal_with(user_response, code=201, skip_none=True)
     @api.expect(data_payload)
+    @admin_token_required
     @save_request
     def post(self, rule):
         """
@@ -35,14 +39,18 @@ class PostData(Resource):
         return post_data(rule, api.payload)
 
 
-@api.route('/data/<string:id_data>')
-@api.response(202, 'Deleted')
-@api.response(204, 'Data ID not found')
-@api.response(503, 'Internal error. Unable to connect to DB')
+@api.route('/<string:rule>/<string:id_data>')
+@api.param('rule', 'Options: M, 15D, 10D, 6D, 5D, 4D, 3D, 2D, D, 12H, 8H, 6H, 3H, 2H, H, R')
+@api.param('id_data', 'The id is <platform_code>_<parameter>_<depth>_<time>')
+@api.response(202, 'Deleted.')
+@api.response(404, 'Data ID not found.')
+@api.response(503, 'Connection error with the DB.')
 class DeleteIngestionData(Resource):
+    @api.doc(security='apikey')
+    @admin_token_required
     @save_request
-    def delete(self, id_data):
+    def delete(self, rule, id_data):
         """
         Delete an existing data record
         """
-        return delete_data(id_data)
+        return delete_data(rule, id_data)

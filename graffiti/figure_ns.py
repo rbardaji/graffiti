@@ -54,8 +54,8 @@ advanced_parser.add_argument('template', type=str, help='Layout template',
 @api.route('/area/<string:platform_code>/<string:parameter>')
 @api.param('platform_code', 'Platform code')
 @api.param('parameter', 'Parameter acronym')
-@api.response(204, 'Data not found')
 @api.response(401, 'Invalid token')
+@api.response(404, 'Data not found')
 @api.response(503, 'Connection error with the DB')
 class GetArea(Resource):
     @api.doc(security='apikey')
@@ -130,13 +130,15 @@ class GetParameterAvailability(Resource):
 
 
 @api.route('/platform_availability/<string:platform_code>')
-@api.response(201, 'Created')
 @api.response(204, 'Data not found')
 @api.response(401, 'Invalid token')
-@api.response(503, 'Internal error. Unable to connect to the DB')
+@api.response(503, 'Connection error with the DB')
 class GetPlatformAvailability(Resource):
-    @save_request
+    @api.doc(security='apikey')
+    @api.marshal_with(user_response, code=201, skip_none=True)
     @api.expect(fig_parser)
+    @token_required
+    @save_request
     def get(self, platform_code):
         """
         Get data availability from a platform
@@ -156,7 +158,7 @@ class GetPlatformAvailability(Resource):
 @api.param('rule', 'Options: M, 15D, 10D, 6D, 5D, 4D, 3D, 2D, D, 12H, 8H, 6H, 3H, 2H, H, R')
 @api.response(204, 'Data not found')
 @api.response(401, 'Invalid token')
-@api.response(503, 'Internal error. Unable to connect to the DB')
+@api.response(503, 'Connection error with the DB')
 class GetFigParameterPie(Resource):
     @api.doc(security='apikey')
     @api.marshal_with(user_response, code=201, skip_none=True)
@@ -180,12 +182,14 @@ class GetFigParameterPie(Resource):
 
 @api.route('/platform_pie/<string:rule>')
 @api.param('rule', 'Options: M, 15D, 10D, 6D, 5D, 4D, 3D, 2D, D, 12H, 8H, 6H, 3H, 2H, H, R')
-@api.response(201, 'Created')
 @api.response(204, 'Data not found')
 @api.response(401, 'Invalid token')
-@api.response(503, 'Internal error. Unable to connect to the DB')
+@api.response(503, 'Connection error with the DB')
 class GetFigPlatformPie(Resource):
+    @api.doc(security='apikey')
+    @api.marshal_with(user_response, code=201, skip_none=True)
     @api.expect(parameter_parser)
+    @token_required
     @save_request
     def get(self, rule):
         """
@@ -235,13 +239,15 @@ class GetFigMap(Resource):
 @api.param('platform_code', 'Platform Code')
 @api.param('x', 'Parameter in x axis')
 @api.param('y', 'Parameter in y axis')
-@api.response(201, 'Created')
 @api.response(204, 'Data not found')
 @api.response(401, 'Invalid token')
-@api.response(503, 'Internal error. Unable to connect to the DB')
+@api.response(503, 'Connection error with the DB')
 class GetScatter(Resource):
-    @save_request
+    @api.doc(security='apikey')
+    @api.marshal_with(user_response, code=201, skip_none=True)
     @api.expect(advanced_parser)
+    @token_required
+    @save_request
     def get(self, platform_code, x, y):
         """
         Obtain a time series line plot

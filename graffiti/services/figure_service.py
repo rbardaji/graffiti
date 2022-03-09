@@ -416,7 +416,7 @@ def get_area(platform_code, parameter, depth_min=None, depth_max=None,
                     'result': [f'{fig_url}/{fig_name}.html']}
                 status_code = 201
             else:
-                abort(204, 'Data not found')
+                abort(404, 'Data not found')
 
     else:
         response = {
@@ -880,11 +880,7 @@ def get_platform_availability(platform_code, depth_min=None, depth_max=None,
                     'result': [path_fig]}
                 status_code = 201
             else:
-                response = {
-                    'status': False,
-                    'message': f'Data not found',
-                    'result': []}
-                status_code = 204
+                abort(204, 'Data not found')
     else:
         response = {
             'status': True,

@@ -11,6 +11,7 @@ from .email_ns import api as email_api
 from .doi_ns import api as doi_api
 from .hash_ns import api as hash_api
 from .user_ns import api as user_api
+from .admin_doi_ns import api as admin_doi_api
 
 from config import swagger_title, swagger_version
 
@@ -30,13 +31,14 @@ api = Api(authorizations=authorizations, title=swagger_title,
 
 
 api.add_namespace(user_api)
+api.add_namespace(email_api)
 api.add_namespace(metadata_api)
 api.add_namespace(vocabulary_api)
 api.add_namespace(data_api)
 api.add_namespace(figure_api)
-api.add_namespace(admin_figure_api)
 api.add_namespace(admin_data_api)
-api.add_namespace(admin_metadata_api)
-api.add_namespace(email_api)
 api.add_namespace(doi_api)
+api.add_namespace(admin_doi_api)
+api.add_namespace(admin_figure_api)
+api.add_namespace(admin_metadata_api)
 api.add_namespace(hash_api)

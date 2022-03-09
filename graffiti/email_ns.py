@@ -1,6 +1,6 @@
 from flask_restx import Namespace, Resource, fields
 
-from .utils.decorator import save_request
+from .utils.decorator import save_request, token_required
 from .services.email_service import send_email
 
 api = Namespace('email', description='Send an email to the help service')
@@ -11,13 +11,16 @@ email_payload = api.model('email_conent', {
     'message': fields.String()})
 
 
-@api.response(201, 'Email sent')
 @api.route('')
+@api.response(201, 'Email sent')
+@api.response(505, 'Email cannot be sent')
 class SendEmail(Resource):
-    @save_request
+    @api.doc(security='apikey')
     @api.expect(email_payload)
+    @token_required
+    @save_request
     def post(self):
         """
-        Send an email to help@emso-eu.org
+        Send an email to the help service.
         """
         return send_email(api.payload)
