@@ -74,16 +74,16 @@ class ResourceTest(unittest.TestCase):
         response = self.app.get(query, headers={'Authorization': test_token})
         self.assertEqual(201, response.status_code)
 
-    # def test_get_platform_availability_201_time_max(self):
-    #     """
-    #     GET
-    #     figure/platform_availability/test_platform44?time_max=4000-01-01T00:00:00Z
-    #     should return a status_code = 201
-    #     """
-    #     query = 'figure/platform_availability/test_platform44?time_max=' + \
-    #         '2200-10-01T00:00:00Z'
-    #     response = self.app.get(query, headers={'Authorization': test_token})
-    #     self.assertEqual(201, response.status_code)
+    def test_get_platform_availability_201_time_max(self):
+        """
+        GET
+        figure/platform_availability/test_platform44?time_max=4000-01-01T00:00:00Z
+        should return a status_code = 201
+        """
+        query = 'figure/platform_availability/test_platform44?time_max=' + \
+            '2200-10-01T00:00:00Z'
+        response = self.app.get(query, headers={'Authorization': test_token})
+        self.assertEqual(201, response.status_code)
 
     def test_get_parameter_pie_201_qc(self):
         """
@@ -94,16 +94,16 @@ class ResourceTest(unittest.TestCase):
         response = self.app.get(query, headers={'Authorization': test_token})
         self.assertEqual(201, response.status_code)
 
-    # def test_get_line_201_all(self):
-    #     """
-    #     GET figure/parameter_pie/R?
-    #     should return a status_code = 201
-    #     """
-    #     query = 'figure/parameter_pie/R?qc=1&' + \
-    #         'time_max=4000-01-01T00:00:00Z&time_min=2000-01-01T00:00:00Z&' + \
-    #         'depth_max=20&depth_min=0'
-    #     response = self.app.get(query, headers={'Authorization': test_token})
-    #     self.assertEqual(201, response.status_code)
+    def test_get_line_201_all(self):
+        """
+        GET figure/parameter_pie/R?
+        should return a status_code = 201
+        """
+        query = 'figure/platform_availability/test_platform44?qc=1&' + \
+            'time_max=4000-01-01T00:00:00Z&time_min=2000-01-01T00:00:00Z&' + \
+            'depth_max=20&depth_min=0'
+        response = self.app.get(query, headers={'Authorization': test_token})
+        self.assertEqual(201, response.status_code)
 
     def tearDown(self):
         """
