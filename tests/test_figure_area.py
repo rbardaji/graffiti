@@ -95,7 +95,7 @@ class ResourceTest(unittest.TestCase):
         GET figure/area/test_platform/test_parameter?time_max=4000-01-01T00:00:00Z
         should return a status_code = 201
         """
-        query = 'figure/area/test_platform/test_parameter?time_min=4000-01-01T00:00:00Z'
+        query = 'figure/area/test_platform/test_parameter?time_max=4000-01-01T00:00:00Z'
         response = self.app.get(query, headers={'Authorization': test_token})
         self.assertEqual(201, response.status_code)
 
@@ -105,6 +105,17 @@ class ResourceTest(unittest.TestCase):
         should return a status_code = 201
         """
         query = 'figure/area/test_platform/test_parameter?qc=1'
+        response = self.app.get(query, headers={'Authorization': test_token})
+        self.assertEqual(201, response.status_code)
+
+    def test_get_area_201_all(self):
+        """
+        GET figure/area/test_platform/test_parameter?qc=1
+        should return a status_code = 201
+        """
+        query = 'figure/area/test_platform/test_parameter?qc=1&' + \
+            'time_max=4000-01-01T00:00:00Z&time_min=2000-01-01T00:00:00Z&' + \
+            'depth_max=20&depth_min=0'
         response = self.app.get(query, headers={'Authorization': test_token})
         self.assertEqual(201, response.status_code)
 

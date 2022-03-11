@@ -139,3 +139,33 @@ def index_name(rule, method='mean'):
         data_index_name = data_index_r
 
     return data_index_name
+
+
+def time_to_str(time_min:str, time_max:str):
+    """
+    Replace ':' to '-' from the time variables.
+
+    Parameters
+    ----------
+        time_min: str
+            Time variable with ':'.
+        time_max: str
+            Time variable with ':'.
+
+    Returns
+    -------
+        time_min_str: str
+            Time variable with '-'.
+        time_max_str: str
+            Time varaible with '-'.
+    """
+    if time_min:
+        time_min_str = time_min.replace(":", "-")
+    else:
+        time_min_str = time_min
+    if time_max:
+        time_max_str = time_max.replace(":", "-")
+    else:
+        time_max_str = time_max
+    
+    return time_min_str, time_max_str

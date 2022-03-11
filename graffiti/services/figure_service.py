@@ -9,6 +9,7 @@ from flask import abort
 from config import fig_folder, fig_url, config_fig, mapbox_access_token
 from ..utils.db_manager import (good_rule, get_df, get_metadata, get_parameter,
                                 get_data_count, get_metadata_id)
+from ..utils.helper import time_to_str
 
 
 def create_fig_folder():
@@ -224,11 +225,13 @@ def get_line(platform_code, parameter, depth_min=None, depth_max=None,
                 The message is a str with comments for the user.
                 The result contains a list with of the figure.
             The status_code is always 201 (created) if multithread = True,
-            otherwhise status_code can be 204 if data is not found.
+            otherwhise status_code can be 404 if data is not found.
     """
+    time_min_str, time_max_str =time_to_str(time_min, time_max)
+
     # Create the filename
     fig_name = f'line-{platform_code}-{parameter}-dmin{depth_min}' + \
-        f'-dmax{depth_max}-tmin{time_min}-tmax{time_max}-qc{qc}'
+        f'-dmax{depth_max}-tmin{time_min_str}-tmax{time_max_str}-qc{qc}'
 
     if not os.path.exists(f'{fig_folder}/{fig_name}.html'):
 
@@ -259,7 +262,7 @@ def get_line(platform_code, parameter, depth_min=None, depth_max=None,
                     'result': [f'{fig_url}/{fig_name}.html']}
                 status_code = 201
             else:
-                abort(204, 'Data not found')
+                abort(404, 'Data not found')
     else:
         response = {
             'status': True,
@@ -382,11 +385,12 @@ def get_area(platform_code, parameter, depth_min=None, depth_max=None,
                 The message is a str with comments for the user.
                 The result contains a list with of the figure.
             The status_code is always 201 (created) if multithread = True,
-            otherwhise status_code can be 204 if data is not found.
+            otherwhise status_code can be 404 if data is not found.
     """
+    time_min_str, time_max_str =time_to_str(time_min, time_max)
     # Create the filename
     fig_name = f'area-{platform_code}-{parameter}-dmin{depth_min}' + \
-        f'-dmax{depth_max}-tmin{time_min}-tmax{time_max}-qc{qc}'
+        f'-dmax{depth_max}-tmin{time_min_str}-tmax{time_max_str}-qc{qc}'
 
     if not os.path.exists(f'{fig_folder}/{fig_name}.html'):
 
@@ -591,12 +595,13 @@ def get_parameter_availability(parameter, depth_min=None, depth_max=None,
                 The message is a str with comments for the user.
                 The result contains a list with of the figure.
             The status_code is always 201 (created) if multithread = True,
-            otherwhise status_code can be 204 if data is not found or 503 to
+            otherwhise status_code can be 404 if data is not found or 503 to
             indicate db connection errors.
     """
+    time_min_str, time_max_str = time_to_str(time_min, time_max)
     # Create the filename
     fig_name = f'parameter_availability-{parameter}-dmin{depth_min}-' + \
-        f'dmax{depth_max}-tmin{time_min}-tmax{time_max}-qc{qc}'
+        f'dmax{depth_max}-tmin{time_min_str}-tmax{time_max_str}-qc{qc}'
 
     if not os.path.exists(f'{fig_folder}/{fig_name}.html'):
 
@@ -637,9 +642,9 @@ def get_parameter_availability(parameter, depth_min=None, depth_max=None,
                         'result': [f'{fig_url}/{fig_name}.html']}
                     status_code = 201
                 else:
-                    abort(204, 'Data not found')
+                    abort(404, 'Data not found')
         else:
-            abort(204, 'Data not found')
+            abort(404, 'Data not found')
     else:
         response = {
             'status': True,
@@ -690,16 +695,22 @@ def thread_platform_availability(platform_code, fig_name, depth_min=None,
             Location of the figure (html file). If there is no data or a db
             connection error, it returns False
     """
+
     parameters = []
-    response_parameters, status_code = get_parameter(platform_code,
-                                                     depth_min, depth_max,
-                                                     time_min, time_min, qc,
+    response_parameters, status_code = get_parameter(platform_code=platform_code,
+                                                     depth_min=depth_min,
+                                                     depth_max=depth_max,
+                                                     time_min=time_min,
+                                                     time_max=time_max, qc=qc,
                                                      rule='M')
     if status_code != 200:
         return False
 
     for response_parameter in response_parameters['result']:
         parameters.append(response_parameter['key'])
+
+    if not parameters:
+        return False
 
     # Get good rule
     search_string = '{"platform_code":' + f'"{platform_code}"' + \
@@ -712,10 +723,10 @@ def thread_platform_availability(platform_code, fig_name, depth_min=None,
             f',"depth_max":{depth_max}' + '}'
     if time_min:
         search_string = search_string[:-1] + \
-            f',"time_min":{time_min}' + '}'
+            f',"time_min":"{time_min}"' + '}'
     if time_max:
         search_string = search_string[:-1] + \
-            f',"time_max":{time_max}' + '}'
+            f',"time_max":"{time_max}"' + '}'
     if qc:
         search_string = search_string[:-1] + \
             f',"qc":{qc}' + '}'
@@ -843,13 +854,13 @@ def get_platform_availability(platform_code, depth_min=None, depth_max=None,
                 The message is a str with comments for the user.
                 The result contains a list with of the figure.
             The status_code is always 201 (created) if multithread = True,
-            otherwhise status_code can be 204 if data is not found or 503 to
+            otherwhise status_code can be 404 if data is not found or 503 to
             indicate db connection errors.
     """
-
+    time_min_str, time_max_str = time_to_str(time_min, time_max)
     # Create the filename
     fig_name = f'platform_availability-{platform_code}-dmin{depth_min}' + \
-        f'-dmax{depth_max}-tmin{time_min}-tmax{time_max}-qc{qc}'
+        f'-dmax{depth_max}-tmin{time_min_str}-tmax{time_max_str}-qc{qc}'
 
     if not os.path.exists(f'{fig_folder}/{fig_name}.html'):
 
@@ -880,7 +891,7 @@ def get_platform_availability(platform_code, depth_min=None, depth_max=None,
                     'result': [path_fig]}
                 status_code = 201
             else:
-                abort(204, 'Data not found')
+                abort(404, 'Data not found')
     else:
         response = {
             'status': True,
@@ -929,11 +940,13 @@ def get_parameter_pie(rule, platform_code=None, depth_min=None, depth_max=None,
                 The message is a str with comments for the user.
                 The result contains a list with of the figure.
             The status_code is always 201 (created) if multithread = True,
-            otherwhise status_code can be 204 if data is not found or 503 to
+            otherwhise status_code can be 404 if data is not found or 503 to
             indicate db connection errors.
     """
+    time_min_str, time_max_str = time_to_str(time_min, time_max)
+
     fig_name = f'parameter_pie-r{rule}-plat{platform_code}-dmin{depth_min}' + \
-        f'-dmax{depth_max}-tmin{time_min}-tmax{time_max}-qc{qc}'
+        f'-dmax{depth_max}-tmin{time_min_str}-tmax{time_max_str}-qc{qc}'
 
 
     if not os.path.exists(f'{fig_folder}/{fig_name}.html'):
@@ -952,7 +965,8 @@ def get_parameter_pie(rule, platform_code=None, depth_min=None, depth_max=None,
             # Create DataFrame
             df = pd.DataFrame(parameter_list)
             fig = px.pie(df, values='doc_count', names='key',
-                         labels={'key': 'Parameter', 'doc_count': 'Measurements'})
+                         labels={'key': 'Parameter',
+                                 'doc_count': 'Measurements'})
             fig.update_layout(margin=dict(l=0, r=0, t=0, b=0))
             plotly.io.write_html(fig, f'{fig_folder}/{fig_name}.html',
                                  config=config_fig, include_plotlyjs='cdn')
@@ -962,7 +976,7 @@ def get_parameter_pie(rule, platform_code=None, depth_min=None, depth_max=None,
                 'result': [f'{fig_url}/{fig_name}.html']}
             status_code = 201
         else:
-            abort(204, 'Data not found')
+            abort(404, 'Data not found')
     else:
         response = {
             'status': True,
@@ -1010,11 +1024,13 @@ def get_platform_pie(rule, parameter=None, depth_min=None, depth_max=None,
                 The message is a str with comments for the user.
                 The result contains a list with of the figure.
             The status_code is always 201 (created) if multithread = True,
-            otherwhise status_code can be 204 if data is not found or 503 to
+            otherwhise status_code can be 404 if data is not found or 503 to
             indicate db connection errors.
     """
+    time_min_str, time_max_str = time_to_str(time_min, time_max)
+
     fig_name = f'platform_pie-r{rule}-param{parameter}-dmin{depth_min}' + \
-        f'-dmax{depth_max}-tmin{time_min}-tmax{time_max}-qc{qc}'
+        f'-dmax{depth_max}-tmin{time_min_str}-tmax{time_max_str}-qc{qc}'
 
     if not os.path.exists(f'{fig_folder}/{fig_name}.html'):
 
@@ -1060,20 +1076,10 @@ def get_platform_pie(rule, parameter=None, depth_min=None, depth_max=None,
             }
             status_code = 201
         else:
-            response = {
-                'status': False,
-                'message': 'No data available',
-                'result': []
-            }
-            status_code = 204
+            abort(404, 'Data not found')
         
     else:
-        response = {
-            'status': False,
-            'message': 'Not available data',
-            'result': []
-        }
-        status_code = 204
+        abort(404, 'Data not found')
     
     return response, status_code
 
@@ -1118,11 +1124,14 @@ def get_map(rule, platform_code=None, parameter=None, depth_min=None,
                 The message is a str with comments for the user.
                 The result contains a list with of the figure.
             The status_code is always 201 (created) if multithread = True,
-            otherwhise status_code can be 204 if data is not found or 503 to
+            otherwhise status_code can be 404 if data is not found or 503 to
             indicate db connection errors.
     """
+    time_min_str, time_max_str = time_to_str(time_min, time_max)
+
     fig_name = f'map-r{rule}-plat{platform_code}-param{parameter}' + \
-        f'-dmin{depth_min}-dmax{depth_max}-tmin{time_min}-tmax{time_max}-qc{qc}'
+        f'-dmin{depth_min}-dmax{depth_max}-tmin{time_min_str}' + \
+        f'-tmax{time_max_str}-qc{qc}'
 
     if not os.path.exists(f'{fig_folder}/{fig_name}.html'):
 
@@ -1141,7 +1150,7 @@ def get_map(rule, platform_code=None, parameter=None, depth_min=None,
             platform_codes = response['result']
 
         if not platform_codes:
-            abort(204, 'Data not found')
+            abort(404, 'Data not found')
 
         latitudes = []
         longitudes = []
@@ -1308,12 +1317,14 @@ def get_scatter(platform_code, x, y, color=None, marginal_x=None,
                 The message is a str with comments for the user.
                 The result contains a list with of the figure.
             The status_code is always 201 (created) if multithread = True,
-            otherwhise status_code can be 204 if data is not found.
+            otherwhise status_code can be 404 if data is not found.
     """
+    time_min_str, time_max_str = time_to_str(time_min, time_max)
+
     # Create the filename
     fig_name = f'scatter-{platform_code}-X{x}-Y{y}-C{color}-MX{marginal_x}' + \
         f'-MY-{marginal_y}-TL-{trendline}-TM-{template}-dmin{depth_min}' + \
-        f'-dmax{depth_max}-tmin{time_min}-tmax{time_max}-qc{qc}'
+        f'-dmax{depth_max}-tmin{time_min_str}-tmax{time_max_str}-qc{qc}'
 
     if not os.path.exists(f'{fig_folder}/{fig_name}.html'):
 
@@ -1347,11 +1358,7 @@ def get_scatter(platform_code, x, y, color=None, marginal_x=None,
                     'result': [f'{fig_url}/{fig_name}.html']}
                 status_code = 201
             else:
-                response = {
-                    'status': False,
-                    'message': f'Data not found',
-                    'result': []}
-                status_code = 204
+                abort(404, 'Data not found')
     else:
         response = {
             'status': True,

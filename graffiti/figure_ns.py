@@ -100,7 +100,7 @@ class GetLine(Resource):
         qc = request.args.get("qc")
 
         return get_line(platform_code, parameter, depth_min, depth_max,
-                        time_min, time_max, qc)
+                        time_min, time_max, qc, False)
 
 
 @api.route('/parameter_availability/<string:parameter>')
@@ -126,7 +126,7 @@ class GetParameterAvailability(Resource):
 
         return get_parameter_availability(parameter, depth_min, depth_max,
                                           time_min, time_max, qc,
-                                          multithread = True)
+                                          multithread = False)
 
 
 @api.route('/platform_availability/<string:platform_code>')
@@ -149,6 +149,7 @@ class GetPlatformAvailability(Resource):
         time_max = request.args.get("time_max")
         qc = request.args.get("qc")
 
+        print('time_min:', time_min)
         return get_platform_availability(platform_code, depth_min, depth_max,
                                          time_min, time_max, qc,
                                          multithread = False)

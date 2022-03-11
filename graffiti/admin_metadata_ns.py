@@ -1,6 +1,6 @@
 from flask_restx import Namespace, Resource, fields
 
-from .utils.decorator import save_request
+from .utils.decorator import save_request, admin_token_required
 from .utils.db_manager import post_metadata, put_metadata, delete_metadata
 
 api = Namespace('admin_metadata', description='Metadata operations')
@@ -52,22 +52,22 @@ metadata_payload = api.model('metadata', {
     'last_longitude_observation': fields.Float(),
     'last_date_observation': fields.Float(),
     'site_code': fields.Float(),
-    'contact': fields.Float(),
-    'institution_references': fields.Float(),
-    'network': fields.Float(),
+    'contact': fields.String(),
+    'institution_references': fields.String(),
+    'network': fields.String(),
     'parameters': fields.List(fields.String())})
 
 
-@api.route('/metadata/<string:platform_code>')
+@api.route('/<string:platform_code>')
 @api.param('platform_code', 'Platform code (ID of the metadata document)')
-@api.response(201, 'Added')
-@api.response(202, 'Deleted')
-@api.response(204,
-    'No content. Platform code not found or metadata not updated')
+@api.response(404, 'Not found')
 @api.response(406, 'Not Acceptable. Bad metadata payload')
 @api.response(503, 'Internal error. Unable to connect to DB')
 class PostPutDeleteAddMetadata(Resource):
+    @api.doc(security='apikey')
+    @api.response(201, 'Added')
     @api.expect(metadata_payload)
+    @admin_token_required
     @save_request
     def post(self, platform_code):
         """
@@ -75,7 +75,9 @@ class PostPutDeleteAddMetadata(Resource):
         """
         return post_metadata(platform_code, api.payload)
 
+    @api.doc(security='apikey')
     @api.expect(metadata_payload)
+    @admin_token_required
     @save_request
     def put(self, platform_code):
         """
@@ -83,9 +85,12 @@ class PostPutDeleteAddMetadata(Resource):
         """
         return put_metadata(platform_code, api.payload)
 
+    @api.doc(security='apikey')
+    @api.response(202, 'Deleted')
+    @admin_token_required
     @save_request
     def delete(self, platform_code):
         """
         Delete a metadata document
         """
-        return delete_metadata(platform_code)
+        return '', delete_metadata(platform_code)

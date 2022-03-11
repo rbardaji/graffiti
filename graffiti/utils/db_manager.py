@@ -10,7 +10,7 @@ from elasticsearch_dsl import Search, A
 from xml.etree import ElementTree as ET
 from flask import abort
 
-from .helper import index_name
+from .helper import index_name, time_to_str
 
 from config import (elastic_host, data_index_r, data_index_h, data_index_2h,
                     data_index_3h, data_index_6h, data_index_8h, data_index_12h,
@@ -346,8 +346,11 @@ def get_df(platform_code, parameter, rule, depth_min=None, depth_max=None,
     -------
         df: pandas DataFrame
     """
+
+    time_min_str, time_max_str = time_to_str(time_min, time_max)
+
     df_name = f'{platform_code}_{parameter}_{rule}_dmin{depth_min}' + \
-        f'_dmax{depth_max}_tmin{time_min}_tmax{time_max}_qc{qc}'
+        f'_dmax{depth_max}_tmin{time_min_str}_tmax{time_max_str}_qc{qc}'
 
     if not os.path.exists(f'{df_folder}/{df_name}.pkl'):
 
@@ -533,7 +536,6 @@ def get_parameter(platform_code=None, depth_min=None, depth_max=None,
                 The result is a list with the platform_code's.
             The status_code is 200 - found or 503 - connection error
     """
-
     elastic = Elasticsearch(elastic_host)
 
     a = A('terms', field='parameter')
@@ -940,7 +942,7 @@ def post_metadata(platform_code: str, metadata: dict):
 
     elastic = Elasticsearch(elastic_host)
 
-    elastic.index(metadata_index, id=platform_code, body=metadata)
+    elastic.index(index=metadata_index, id=platform_code, document=metadata)
 
     response = {
         'status': True,
@@ -948,8 +950,8 @@ def post_metadata(platform_code: str, metadata: dict):
         'result': [{platform_code: metadata}]
     }
     status_code = 201
-    elastic.close()
 
+    elastic.close()
     return response, status_code
 
 
@@ -1034,7 +1036,7 @@ def put_metadata(platform_code, metadata):
     return response, status_code
 
 
-def delete_metadata(platform_code):
+def delete_metadata(platform_code: str):
     """
     Delete a metadata document from elasticsearch.
     The input platform_code is the ID of the document.
@@ -1047,8 +1049,8 @@ def delete_metadata(platform_code):
     Returns
     -------
         status_code: int
-            202 - Deleted
-            204 - Metadata not found
+            202 - Deleted,
+            404 - Metadata not found,
             503 - Connection error with the DB
     """
     elastic = Elasticsearch(elastic_host)
@@ -1058,9 +1060,10 @@ def delete_metadata(platform_code):
         if response['result'] == 'deleted':
             status_code = 202
     except exceptions.NotFoundError:
-        status_code = 204
+        status_code = 404
     except exceptions.ConnectionError:
         status_code = 503
+
     elastic.close()
     return status_code
 
