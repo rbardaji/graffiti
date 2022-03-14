@@ -485,9 +485,9 @@ def thread_parameter_availability(parameter, platform_code_list, fig_name,
         # Create DataFrame
         df_content = []
         for platform_code in platform_code_list:
-
             df_parameter = get_df(platform_code, parameter, rule, depth_min,
                                 depth_max, time_min, time_max, qc)
+
             try:
                 df_parameter['time'] = pd.to_datetime(df_parameter['time'])
                 df_parameter.set_index('time', inplace=True)
@@ -608,7 +608,7 @@ def get_parameter_availability(parameter, depth_min=None, depth_max=None,
         create_fig_folder()
 
         # Get all metadata ids (platform_code)
-        response, status_code = get_metadata()
+        response, status_code = get_metadata(parameter=parameter)
 
         if status_code != 200:
             return response, status_code

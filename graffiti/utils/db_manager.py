@@ -489,9 +489,9 @@ def get_metadata(platform_code: str=None, parameter: str=None,
             }
             status_code = 200
         else:
-            abort(204, 'List of platform codes - empty')
+            abort(404, 'List of platform codes - empty')
     except exceptions.NotFoundError:
-            abort(204, 'List of platform codes - empty')
+            abort(404, 'List of platform codes - empty')
     except exceptions.ConnectionError:
         abort(503, 'Connection error with the DB')
 

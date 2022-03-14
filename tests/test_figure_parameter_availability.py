@@ -7,7 +7,6 @@ class ResourceTest(unittest.TestCase):
 
     def setUp(self):
         self.app = app.test_client()
-        # Add metadata to the DB
         query = '/admin_metadata/test_platform44'
         payload = {
             'platform_code': 'test_platform44',
@@ -81,61 +80,79 @@ class ResourceTest(unittest.TestCase):
             self.app.post(query, json=payload,
                         headers={'Authorization': test_token})
 
-    def test_get_map_201(self):
+    def test_get_parameter_availability_201(self):
         """
-        GET figure/map/R should return a status_code = 201
-        """
-        query = 'figure/map/M'
-        response = self.app.get(query, headers={'Authorization': test_token})
-        self.assertEqual(201, response.status_code)
-
-    def test_get_map_201_depth_min(self):
-        """
-        GET figure/map/M?depth_min=0 should return a status_code = 201
-        """
-        query = 'figure/map/M?depth_min=0'
-        response = self.app.get(query, headers={'Authorization': test_token})
-        self.assertEqual(201, response.status_code)
-
-    def test_get_map_201_depth_max(self):
-        """
-        GET figure/map/M?depth_max=20 should return a status_code = 201
-        """
-        query = 'figure/map/M?depth_max=20'
-        response = self.app.get(query, headers={'Authorization': test_token})
-        self.assertEqual(201, response.status_code)
-
-    def test_get_map_201_time_min(self):
-        """
-        GET figure/map/M?time_min=2000-01-01T00:00:00Z should return a
+        GET figure/parameter_availability/test_parameter should return a
         status_code = 201
         """
-        query = 'figure/map/M?time_min=2000-01-01T00:00:00Z'
+        query = 'figure/parameter_availability/test_parameter'
         response = self.app.get(query, headers={'Authorization': test_token})
         self.assertEqual(201, response.status_code)
 
-    def test_get_map_201_time_max(self):
+    def test_get_parameter_availability_404_bad_parameter(self):
         """
-        GET figure/map/M?time_max=4000-01-01T00:00:00Z should return a
+        GET figure/parameter_availability/bad_parameter should return a
+        status_code = 404
+        """
+        query = 'figure/parameter_availability/bad_parameter'
+        response = self.app.get(query, headers={'Authorization': test_token})
+        self.assertEqual(404, response.status_code)
+
+    def test_get_parameter_availability_201_depth_min(self):
+        """
+        GET figure/parameter_availability/test_platform44?depth_min=0 should return
+        a status_code = 201
+        """
+        query = 'figure/parameter_availability/test_parameter?depth_min=0'
+        response = self.app.get(query, headers={'Authorization': test_token})
+        self.assertEqual(201, response.status_code)
+
+    def test_get_parameter_availability_201_depth_max(self):
+        """
+        GET figure/parameter_availability/test_parameter?depth_max=20 should
+        return a status_code = 201
+        """
+        query = 'figure/parameter_availability/test_parameter?depth_max=20'
+        response = self.app.get(query, headers={'Authorization': test_token})
+        self.assertEqual(201, response.status_code)
+
+    def test_get_parameter_availability_201_time_min(self):
+        """
+        GET
+        figure/parameter_availability/test_parameter?time_min=2000-01-01T00:00:00Z
+        should return a status_code = 201
+        """
+        query = 'figure/parameter_availability/test_parameter?time_min' + \
+            '=2000-01-01T00:00:00Z'
+        response = self.app.get(query, headers={'Authorization': test_token})
+        self.assertEqual(201, response.status_code)
+
+    def test_get_parameter_availability_201_time_max(self):
+        """
+        GET
+        figure/parameter_availability/test_parameter?time_max=4000-01-01T00:00:00Z
+        should return a status_code = 201
+        """
+        query = 'figure/parameter_availability/test_parameter?time_max=' + \
+            '2200-10-01T00:00:00Z'
+        response = self.app.get(query, headers={'Authorization': test_token})
+        self.assertEqual(201, response.status_code)
+
+    def test_get_parameter_availability_201_qc(self):
+        """
+        GET figure/parameter_availability/test_parameter?qc=1 should return a
         status_code = 201
         """
-        query = 'figure/map/M?time_max=2200-10-01T00:00:00Z'
+        query = 'figure/parameter_availability/test_parameter?qc=1'
         response = self.app.get(query, headers={'Authorization': test_token})
         self.assertEqual(201, response.status_code)
 
-    def test_get_map_201_qc(self):
+    def test_get_parameter_availability_201_all(self):
         """
-        GET figure/map/M?qc=1 should return a status_code = 201
+        GET figure/parameter_availability/test_parameter?all
+        should return a status_code = 201
         """
-        query = 'figure/map/M?qc=1'
-        response = self.app.get(query, headers={'Authorization': test_token})
-        self.assertEqual(201, response.status_code)
-
-    def test_get_map_201_all(self):
-        """
-        GET figure/map/M?... should return a status_code = 201
-        """
-        query = 'figure/map/M?qc=1&' + \
+        query = 'figure/parameter_availability/test_parameter?qc=1&' + \
             'time_max=4000-01-01T00:00:00Z&time_min=2000-01-01T00:00:00Z&' + \
             'depth_max=20&depth_min=0'
         response = self.app.get(query, headers={'Authorization': test_token})
