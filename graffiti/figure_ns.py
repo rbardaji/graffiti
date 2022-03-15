@@ -22,6 +22,12 @@ fig_parser.add_argument('time_max',
 fig_parser.add_argument('qc', type=int,
                         help='Quality Control flag value of the measurement',
                         choices=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
+fig_parser.add_argument('template', type=str, help='Layout template',
+                        choices= ['ggplot2', 'seaborn', 'simple_white',
+                                  'plotly', 'plotly_white', 'plotly_dark',
+                                  'presentation', 'xgridoff', 'ygridoff',
+                                  'gridon'])
+
 
 platform_parser = fig_parser.copy()
 platform_parser.add_argument('platform_code', type=str, help='Platform code')
@@ -34,7 +40,8 @@ complete_parser.add_argument('parameter', type=str, help='Parameter acronym')
 
 advanced_parser = fig_parser.copy()
 advanced_parser.add_argument('color', type=str,
-                             help='Variable referenced to the color')
+                             help='Variable referenced to the color',
+                             choices=['depth', 'time'])
 advanced_parser.add_argument('marginal_x', type=str,
                              help='Additional chart in the x axis',
                              choices=['histogram', 'rug', 'box', 'violin'])
@@ -42,13 +49,7 @@ advanced_parser.add_argument('marginal_y', type=str,
                              help='Additional chart in the x axis',
                              choices=['histogram', 'rug', 'box', 'violin'])
 advanced_parser.add_argument('trendline', type=str, help='Make a trendline',
-                             choices=['ols', 'lowess', 'ewm', 'rolling',
-                                      'expanding'])
-advanced_parser.add_argument('template', type=str, help='Layout template',
-                             choices= ['ggplot2', 'seaborn', 'simple_white',
-                                       'plotly', 'plotly_white', 'plotly_dark',
-                                       'presentation', 'xgridoff', 'ygridoff',
-                                       'gridon'])
+                             choices=['ols', 'lowess', 'expanding'])
 
 
 @api.route('/area/<string:platform_code>/<string:parameter>')
@@ -72,9 +73,10 @@ class GetArea(Resource):
         time_min = request.args.get("time_min")
         time_max = request.args.get("time_max")
         qc = request.args.get("qc")
+        template = request.args.get('template')
 
         return get_area(platform_code, parameter, depth_min, depth_max,
-                        time_min, time_max, qc, False)
+                        time_min, time_max, qc, template, False)
 
 
 @api.route('/line/<string:platform_code>/<string:parameter>')
@@ -265,4 +267,4 @@ class GetScatter(Resource):
 
         return get_scatter(platform_code, x, y, color, marginal_x, marginal_y,
                            trendline, template, depth_min, depth_max, time_min,
-                           time_max, qc, True)
+                           time_max, qc, False)

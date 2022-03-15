@@ -82,74 +82,74 @@ class ResourceTest(unittest.TestCase):
 
     def test_get_platform_pie_201(self):
         """
-        GET figure/platform_pie/R should return a status_code = 201
+        GET figure/platform_pie/M should return a status_code = 201
         """
         query = 'figure/platform_pie/M'
         response = self.app.get(query, headers={'Authorization': test_token})
         self.assertEqual(201, response.status_code)
 
-    # def test_get_platform_pie_404_bad_parameter(self):
-    #     """
-    #     GET figure/platform_pie/M?parameter=bad_parameter should return a
-    #     status_code = 404
-    #     """
-    #     query = 'figure/platform_pie/M?parameter=bad_parameter'
-    #     response = self.app.get(query, headers={'Authorization': test_token})
-    #     self.assertEqual(404, response.status_code)
+    def test_get_platform_pie_404_bad_parameter(self):
+        """
+        GET figure/platform_pie/M?parameter=bad_parameter should return a
+        status_code = 404
+        """
+        query = 'figure/platform_pie/M?parameter=bad_parameter'
+        response = self.app.get(query, headers={'Authorization': test_token})
+        self.assertEqual(404, response.status_code)
 
-    # def test_get_parameter_pie_201_depth_min(self):
-    #     """
-    #     GET figure/parameter_pie/R?depth_min=0 should return a status_code = 201
-    #     """
-    #     query = 'figure/parameter_pie/R?depth_min=0'
-    #     response = self.app.get(query, headers={'Authorization': test_token})
-    #     self.assertEqual(201, response.status_code)
+    def test_get_platform_pie_201_depth_min(self):
+        """
+        GET figure/platform_pie/M?depth_min=0 should return a status_code = 201
+        """
+        query = 'figure/platform_pie/M?depth_min=0'
+        response = self.app.get(query, headers={'Authorization': test_token})
+        self.assertEqual(201, response.status_code)
 
-    # def test_get_parameter_pie_201_depth_max(self):
-    #     """
-    #     GET figure/parameter_pie/R?depth_max=20 should return a
-    #     status_code = 201
-    #     """
-    #     query = 'figure/parameter_pie/R?depth_max=20'
-    #     response = self.app.get(query, headers={'Authorization': test_token})
-    #     self.assertEqual(201, response.status_code)
+    def test_get_platform_pie_201_depth_max(self):
+        """
+        GET figure/platform_pie/M?depth_max=20 should return a
+        status_code = 201
+        """
+        query = 'figure/platform_pie/M?depth_max=20'
+        response = self.app.get(query, headers={'Authorization': test_token})
+        self.assertEqual(201, response.status_code)
 
-    # def test_get_parameter_pie_201_time_min(self):
-    #     """
-    #     GET figure/parameter_pie/R?time_min=2000-01-01T00:00:00Z
-    #     should return a status_code = 201
-    #     """
-    #     query = 'figure/parameter_pie/R?time_min=2000-01-01T00:00:00Z'
-    #     response = self.app.get(query, headers={'Authorization': test_token})
-    #     self.assertEqual(201, response.status_code)
+    def test_get_platform_pie_201_time_min(self):
+        """
+        GET figure/platform_pie/M?time_min=2000-01-01T00:00:00Z
+        should return a status_code = 201
+        """
+        query = 'figure/parameter_pie/M?time_min=2000-01-01T00:00:00Z'
+        response = self.app.get(query, headers={'Authorization': test_token})
+        self.assertEqual(201, response.status_code)
 
-    # def test_get_parameter_pie_201_time_max(self):
-    #     """
-    #     GET figure/parameter_pie/R?time_max=4000-01-01T00:00:00Z
-    #     should return a status_code = 201
-    #     """
-    #     query = 'figure/parameter_pie/R?time_max=4000-01-01T00:00:00Z'
-    #     response = self.app.get(query, headers={'Authorization': test_token})
-    #     self.assertEqual(201, response.status_code)
+    def test_get_platform_pie_201_time_max(self):
+        """
+        GET figure/platform_pie/M?time_max=4000-01-01T00:00:00Z
+        should return a status_code = 201
+        """
+        query = 'figure/parameter_pie/R?time_max=4000-01-01T00:00:00Z'
+        response = self.app.get(query, headers={'Authorization': test_token})
+        self.assertEqual(201, response.status_code)
 
-    # def test_get_parameter_pie_201_qc(self):
-    #     """
-    #     GET figure/parameter_pie/R?qc=1 should return a status_code = 201
-    #     """
-    #     query = 'figure/parameter_pie/R?qc=1'
-    #     response = self.app.get(query, headers={'Authorization': test_token})
-    #     self.assertEqual(201, response.status_code)
+    def test_get_parameter_pie_201_qc(self):
+        """
+        GET figure/parameter_pie/M?qc=1 should return a status_code = 201
+        """
+        query = 'figure/parameter_pie/R?qc=1'
+        response = self.app.get(query, headers={'Authorization': test_token})
+        self.assertEqual(201, response.status_code)
 
-    # def test_get_line_201_all(self):
-    #     """
-    #     GET figure/parameter_pie/R?
-    #     should return a status_code = 201
-    #     """
-    #     query = 'figure/parameter_pie/R?qc=1&' + \
-    #         'time_max=4000-01-01T00:00:00Z&time_min=2000-01-01T00:00:00Z&' + \
-    #         'depth_max=20&depth_min=0'
-    #     response = self.app.get(query, headers={'Authorization': test_token})
-    #     self.assertEqual(201, response.status_code)
+    def test_get_parameter_pie_201_all(self):
+        """
+        GET figure/parameter_pie/M?
+        should return a status_code = 201
+        """
+        query = 'figure/parameter_pie/M?qc=1&' + \
+            'time_max=4000-01-01T00:00:00Z&time_min=2000-01-01T00:00:00Z&' + \
+            'depth_max=20&depth_min=0'
+        response = self.app.get(query, headers={'Authorization': test_token})
+        self.assertEqual(201, response.status_code)
 
     def tearDown(self):
         """

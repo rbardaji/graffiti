@@ -275,7 +275,7 @@ def get_line(platform_code, parameter, depth_min=None, depth_max=None,
 
 def thread_area(platform_code, parameter, fig_name, depth_min=None,
                 depth_max=None, time_min=None, time_max=None, qc=None,
-                detached=False):
+                template=None, detached=False):
     """
     It creates an area figure, the x axis is the time and the y axis is the
     averave of values from the input parameter of the platform_code.
@@ -305,6 +305,10 @@ def thread_area(platform_code, parameter, fig_name, depth_min=None,
             Examples: yyyy-MM-dd'T'HH:mm:ss.SSSZ or yyyy-MM-dd.
         qc: int
             Quality Control value of the measurement.
+        template: str
+            Options: 'ggplot2', 'seaborn', 'simple_white', 'plotly',
+            'plotly_white', 'plotly_dark', 'presentation', 'xgridoff',
+            'ygridoff' and 'gridon'
         detached: bool
             If detached is True, the function makes an html with the message
             'no data found'.
@@ -329,7 +333,7 @@ def thread_area(platform_code, parameter, fig_name, depth_min=None,
             figure_path = False
         else:
             fig = px.area(df, x='time', y='value', color='depth',
-                          line_group='platform_code')
+                          line_group='platform_code', template=template)
 
             plotly.io.write_html(fig, figure_path, config=config_fig, 
                                  include_plotlyjs='cdn')
@@ -344,7 +348,8 @@ def thread_area(platform_code, parameter, fig_name, depth_min=None,
 
 
 def get_area(platform_code, parameter, depth_min=None, depth_max=None,
-             time_min=None, time_max=None, qc=None, multithread=True):
+             time_min=None, time_max=None, qc=None, template=None,
+             multithread=True):
     """
     Make an area figure using Plotly. The trace contains averages
     values of the input parameter. 
@@ -371,6 +376,10 @@ def get_area(platform_code, parameter, depth_min=None, depth_max=None,
             Examples: yyyy-MM-dd'T'HH:mm:ss.SSSZ or yyyy-MM-dd.
         qc: int
             Quality Flag value of the measurement.
+        template: str
+            Options: 'ggplot2', 'seaborn', 'simple_white', 'plotly',
+            'plotly_white', 'plotly_dark', 'presentation', 'xgridoff',
+            'ygridoff' and 'gridon'
         multithread: bool
             Getting the data and making the plot takes a while.
             This argument makes the figure with a secondary thread to avoid
@@ -390,7 +399,8 @@ def get_area(platform_code, parameter, depth_min=None, depth_max=None,
     time_min_str, time_max_str =time_to_str(time_min, time_max)
     # Create the filename
     fig_name = f'area-{platform_code}-{parameter}-dmin{depth_min}' + \
-        f'-dmax{depth_max}-tmin{time_min_str}-tmax{time_max_str}-qc{qc}'
+        f'-dmax{depth_max}-tmin{time_min_str}-tmax{time_max_str}-qc{qc}' + \
+        f'-template{template}'
 
     if not os.path.exists(f'{fig_folder}/{fig_name}.html'):
 
@@ -400,7 +410,7 @@ def get_area(platform_code, parameter, depth_min=None, depth_max=None,
             f = threading.Thread(
                 target=thread_area,
                 args=(platform_code, parameter, fig_name, depth_min, depth_max,
-                      time_min, time_max, qc, True))
+                      time_min, time_max, qc, template, True))
             f.start()
 
             response = {
@@ -411,7 +421,8 @@ def get_area(platform_code, parameter, depth_min=None, depth_max=None,
             status_code = 201
         else:
             path_fig = thread_area(platform_code, parameter, fig_name,
-                                   depth_min, depth_max, time_min, time_max, qc)
+                                   depth_min, depth_max, time_min, time_max, qc,
+                                   template)
 
             if path_fig:
                 response = {
@@ -1038,6 +1049,7 @@ def get_platform_pie(rule, parameter=None, depth_min=None, depth_max=None,
 
         # Get metadata ids
         response, status_code = get_metadata()
+
         if status_code != 200:
             return response, status_code
 
@@ -1079,7 +1091,11 @@ def get_platform_pie(rule, parameter=None, depth_min=None, depth_max=None,
             abort(404, 'Data not found')
         
     else:
-        abort(404, 'Data not found')
+        response = {
+            'status': True,
+            'message': 'Link to the figure in result[0]',
+            'result': [f'{fig_url}/{fig_name}.html']}
+        status_code = 201
     
     return response, status_code
 
