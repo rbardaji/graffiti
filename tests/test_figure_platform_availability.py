@@ -94,6 +94,116 @@ class ResourceTest(unittest.TestCase):
         response = self.app.get(query, headers={'Authorization': test_token})
         self.assertEqual(201, response.status_code)
 
+    def test_get_platform_availability_201_template_ggplot2(self):
+        """
+        GET
+        figure/platform_availability/test_platform44?
+        template=ggplot2
+        should return a status_code = 201
+        """
+        query = 'figure/platform_availability/test_platform44?template=ggplot2'
+        response = self.app.get(query, headers={'Authorization': test_token})
+        self.assertEqual(201, response.status_code)
+
+    def test_get_platform_availability_201_template_seaborn(self):
+        """
+        GET
+        figure/platform_availability/test_platform44?
+        template=seaborn
+        should return a status_code = 201
+        """
+        query = 'figure/platform_availability/test_platform44?template=seaborn'
+        response = self.app.get(query, headers={'Authorization': test_token})
+        self.assertEqual(201, response.status_code)
+
+    def test_get_platform_availability_201_template_simple_white(self):
+        """
+        GET
+        figure/platform_availability/test_platform44?
+        template=simple_white
+        should return a status_code = 201
+        """
+        query = 'figure/platform_availability/test_platform44?template=simple_white'
+        response = self.app.get(query, headers={'Authorization': test_token})
+        self.assertEqual(201, response.status_code)
+
+    def test_get_platform_availability_201_template_plotly(self):
+        """
+        GET
+        figure/platform_availability/test_platform44?
+        template=plotly
+        should return a status_code = 201
+        """
+        query = 'figure/platform_availability/test_platform44?template=plotly'
+        response = self.app.get(query, headers={'Authorization': test_token})
+        self.assertEqual(201, response.status_code)
+
+    def test_get_platform_availability_201_template_plotly_white(self):
+        """
+        GET
+        figure/platform_availability/test_platform44?
+        template=plotly_white
+        should return a status_code = 201
+        """
+        query = 'figure/platform_availability/test_platform44?template=plotly_white'
+        response = self.app.get(query, headers={'Authorization': test_token})
+        self.assertEqual(201, response.status_code)
+
+    def test_get_platform_availability_201_template_plotly_dark(self):
+        """
+        GET
+        figure/platform_availability/test_platform44?
+        template=plotly_dark
+        should return a status_code = 201
+        """
+        query = 'figure/platform_availability/test_platform44?template=plotly_dark'
+        response = self.app.get(query, headers={'Authorization': test_token})
+        self.assertEqual(201, response.status_code)
+
+    def test_get_platform_availability_201_template_presentation(self):
+        """
+        GET
+        figure/platform_availability/test_platform44?
+        template=presentation
+        should return a status_code = 201
+        """
+        query = 'figure/platform_availability/test_platform44?template=presentation'
+        response = self.app.get(query, headers={'Authorization': test_token})
+        self.assertEqual(201, response.status_code)
+
+    def test_get_platform_availability_201_template_xgridoff(self):
+        """
+        GET
+        figure/platform_availability/test_platform44?
+        template=xgridoff
+        should return a status_code = 201
+        """
+        query = 'figure/platform_availability/test_platform44?template=xgridoff'
+        response = self.app.get(query, headers={'Authorization': test_token})
+        self.assertEqual(201, response.status_code)
+
+    def test_get_platform_availability_201_template_ygridoff(self):
+        """
+        GET
+        figure/platform_availability/test_platform44?
+        template=ygridoff
+        should return a status_code = 201
+        """
+        query = 'figure/platform_availability/test_platform44?template=ygridoff'
+        response = self.app.get(query, headers={'Authorization': test_token})
+        self.assertEqual(201, response.status_code)
+
+    def test_get_platform_availability_201_template_gridon(self):
+        """
+        GET
+        figure/platform_availability/test_platform44?
+        template=gridon
+        should return a status_code = 201
+        """
+        query = 'figure/platform_availability/test_platform44?template=gridon'
+        response = self.app.get(query, headers={'Authorization': test_token})
+        self.assertEqual(201, response.status_code)
+
     def test_get_line_201_all(self):
         """
         GET figure/parameter_pie/R?
@@ -101,7 +211,7 @@ class ResourceTest(unittest.TestCase):
         """
         query = 'figure/platform_availability/test_platform44?qc=1&' + \
             'time_max=4000-01-01T00:00:00Z&time_min=2000-01-01T00:00:00Z&' + \
-            'depth_max=20&depth_min=0'
+            'depth_max=20&depth_min=0&template=gridon'
         response = self.app.get(query, headers={'Authorization': test_token})
         self.assertEqual(201, response.status_code)
 

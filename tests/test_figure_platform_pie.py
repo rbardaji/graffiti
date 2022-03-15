@@ -140,6 +140,116 @@ class ResourceTest(unittest.TestCase):
         response = self.app.get(query, headers={'Authorization': test_token})
         self.assertEqual(201, response.status_code)
 
+    def test_get_parameter_pie_201_template_ggplot2(self):
+        """
+        GET
+        figure/parameter_pie/M?
+        template=ggplot2
+        should return a status_code = 201
+        """
+        query = 'figure/parameter_pie/M?template=ggplot2'
+        response = self.app.get(query, headers={'Authorization': test_token})
+        self.assertEqual(201, response.status_code)
+
+    def test_get_parameter_pie_201_template_seaborn(self):
+        """
+        GET
+        figure/parameter_pie/M?
+        template=seaborn
+        should return a status_code = 201
+        """
+        query = 'figure/parameter_pie/M?template=seaborn'
+        response = self.app.get(query, headers={'Authorization': test_token})
+        self.assertEqual(201, response.status_code)
+
+    def test_get_parameter_pie_201_template_simple_white(self):
+        """
+        GET
+        figure/parameter_pie/M?
+        template=simple_white
+        should return a status_code = 201
+        """
+        query = 'figure/parameter_pie/M?template=simple_white'
+        response = self.app.get(query, headers={'Authorization': test_token})
+        self.assertEqual(201, response.status_code)
+
+    def test_get_parameter_pie_201_template_plotly(self):
+        """
+        GET
+        figure/parameter_pie/M?
+        template=plotly
+        should return a status_code = 201
+        """
+        query = 'figure/parameter_pie/M?template=plotly'
+        response = self.app.get(query, headers={'Authorization': test_token})
+        self.assertEqual(201, response.status_code)
+
+    def test_get_parameter_pie_201_template_plotly_white(self):
+        """
+        GET
+        figure/parameter_pie/M?
+        template=plotly_white
+        should return a status_code = 201
+        """
+        query = 'figure/parameter_pie/M?template=plotly_white'
+        response = self.app.get(query, headers={'Authorization': test_token})
+        self.assertEqual(201, response.status_code)
+
+    def test_get_parameter_pie_201_template_plotly_dark(self):
+        """
+        GET
+        figure/parameter_pie/M?
+        template=plotly_dark
+        should return a status_code = 201
+        """
+        query = 'figure/parameter_pie/M?template=plotly_dark'
+        response = self.app.get(query, headers={'Authorization': test_token})
+        self.assertEqual(201, response.status_code)
+
+    def test_get_parameter_pie_201_template_presentation(self):
+        """
+        GET
+        figure/parameter_pie/M?
+        template=presentation
+        should return a status_code = 201
+        """
+        query = 'figure/parameter_pie/M?template=presentation'
+        response = self.app.get(query, headers={'Authorization': test_token})
+        self.assertEqual(201, response.status_code)
+
+    def test_get_parameter_pie_201_template_xgridoff(self):
+        """
+        GET
+        figure/parameter_pie/M?
+        template=xgridoff
+        should return a status_code = 201
+        """
+        query = 'figure/parameter_pie/M?template=xgridoff'
+        response = self.app.get(query, headers={'Authorization': test_token})
+        self.assertEqual(201, response.status_code)
+
+    def test_get_parameter_pie_201_template_ygridoff(self):
+        """
+        GET
+        figure/parameter_pie/M?
+        template=ygridoff
+        should return a status_code = 201
+        """
+        query = 'figure/parameter_pie/M?template=ygridoff'
+        response = self.app.get(query, headers={'Authorization': test_token})
+        self.assertEqual(201, response.status_code)
+
+    def test_get_parameter_pie_201_template_gridon(self):
+        """
+        GET
+        figure/parameter_pie/M?
+        template=gridon
+        should return a status_code = 201
+        """
+        query = 'figure/parameter_pie/M?template=gridon'
+        response = self.app.get(query, headers={'Authorization': test_token})
+        self.assertEqual(201, response.status_code)
+
     def test_get_parameter_pie_201_all(self):
         """
         GET figure/parameter_pie/M?

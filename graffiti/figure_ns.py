@@ -100,9 +100,10 @@ class GetLine(Resource):
         time_min = request.args.get("time_min")
         time_max = request.args.get("time_max")
         qc = request.args.get("qc")
+        template = request.args.get('template')
 
         return get_line(platform_code, parameter, depth_min, depth_max,
-                        time_min, time_max, qc, False)
+                        time_min, time_max, qc, template, False)
 
 
 @api.route('/parameter_availability/<string:parameter>')
@@ -125,9 +126,10 @@ class GetParameterAvailability(Resource):
         time_min = request.args.get("time_min")
         time_max = request.args.get("time_max")
         qc = request.args.get("qc")
+        template = request.args.get('template')
 
         return get_parameter_availability(parameter, depth_min, depth_max,
-                                          time_min, time_max, qc,
+                                          time_min, time_max, qc, template,
                                           multithread = False)
 
 
@@ -150,9 +152,10 @@ class GetPlatformAvailability(Resource):
         time_min = request.args.get("time_min")
         time_max = request.args.get("time_max")
         qc = request.args.get("qc")
+        template = request.args.get('template')
 
         return get_platform_availability(platform_code, depth_min, depth_max,
-                                         time_min, time_max, qc,
+                                         time_min, time_max, qc, template,
                                          multithread = False)
 
 
@@ -177,9 +180,10 @@ class GetFigParameterPie(Resource):
         time_min = request.args.get("time_min")
         time_max = request.args.get("time_max")
         qc = request.args.get("qc")
+        template = request.args.get('template')
 
         return get_parameter_pie(rule, platform_code, depth_min, depth_max,
-                                 time_min, time_max, qc)
+                                 time_min, time_max, qc, template)
 
 
 @api.route('/platform_pie/<string:rule>')
@@ -203,9 +207,10 @@ class GetFigPlatformPie(Resource):
         time_min = request.args.get("time_min")
         time_max = request.args.get("time_max")
         qc = request.args.get("qc")
+        template = request.args.get('template')
 
         return get_platform_pie(rule, parameter, depth_min, depth_max, time_min,
-                                time_max, qc)
+                                time_max, qc, template)
 
 
 @api.route('/map/<string:rule>')
@@ -232,9 +237,10 @@ class GetFigMap(Resource):
         time_min = request.args.get("time_min")
         time_max = request.args.get("time_max")
         qc = request.args.get("qc")
+        template = request.args.get('template')
 
         return get_map(rule, platform_code, parameter, depth_min, depth_max,
-                       time_min, time_max, qc)
+                       time_min, time_max, qc, template)
 
 
 @api.route('/scatter/<string:platform_code>/<string:x>/<string:y>')

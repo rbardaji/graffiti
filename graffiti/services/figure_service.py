@@ -113,7 +113,7 @@ def get_rule(platform_code, parameter, depth_min=None, depth_max=None,
 
 def thread_line(platform_code, parameter, fig_name, depth_min=None,
                 depth_max=None, time_min=None, time_max=None, qc=None,
-                detached=False):
+                template=None, detached=False):
     """
     It creates a line figure, the x axis is the time and the y axis is the
     averave of values from the input parameter of the platform_code.
@@ -143,6 +143,10 @@ def thread_line(platform_code, parameter, fig_name, depth_min=None,
             Examples: yyyy-MM-dd'T'HH:mm:ss.SSSZ or yyyy-MM-dd.
         qc: int
             Quality Control value of the measurement.
+        template: str
+            Options: 'ggplot2', 'seaborn', 'simple_white', 'plotly',
+            'plotly_white', 'plotly_dark', 'presentation', 'xgridoff',
+            'ygridoff' and 'gridon'
         detached: bool
             If detached is True, the function makes an html with the message
             'no data found'.
@@ -170,7 +174,7 @@ def thread_line(platform_code, parameter, fig_name, depth_min=None,
             fig = px.line(df, x='time', y='value', color='platform_code',
                           line_group='parameter', hover_name='platform_code',
                           line_dash='depth', line_shape="spline",
-                          render_mode="svg")
+                          render_mode="svg", template=template)
 
             plotly.io.write_html(fig, figure_path, config=config_fig,
                                  include_plotlyjs='cdn')
@@ -184,7 +188,8 @@ def thread_line(platform_code, parameter, fig_name, depth_min=None,
 
 
 def get_line(platform_code, parameter, depth_min=None, depth_max=None,
-             time_min=None, time_max=None, qc=None, multithread=True):
+             time_min=None, time_max=None, qc=None, template=None,
+             multithread=True):
     """
     Make a time series line figure using Plotly. The trace contains averages
     values of the input parameter. 
@@ -211,6 +216,10 @@ def get_line(platform_code, parameter, depth_min=None, depth_max=None,
             Examples: yyyy-MM-dd'T'HH:mm:ss.SSSZ or yyyy-MM-dd.
         qc: int
             Quality Flag value of the measurement.
+        template: str
+            Options: 'ggplot2', 'seaborn', 'simple_white', 'plotly',
+            'plotly_white', 'plotly_dark', 'presentation', 'xgridoff',
+            'ygridoff' and 'gridon'
         multithread: bool
             Getting the data and making the plot takes a while.
             This argument makes the figure with a secondary thread to avoid
@@ -231,7 +240,8 @@ def get_line(platform_code, parameter, depth_min=None, depth_max=None,
 
     # Create the filename
     fig_name = f'line-{platform_code}-{parameter}-dmin{depth_min}' + \
-        f'-dmax{depth_max}-tmin{time_min_str}-tmax{time_max_str}-qc{qc}'
+        f'-dmax{depth_max}-tmin{time_min_str}-tmax{time_max_str}-qc{qc}' + \
+        f'-template{template}'
 
     if not os.path.exists(f'{fig_folder}/{fig_name}.html'):
 
@@ -241,7 +251,7 @@ def get_line(platform_code, parameter, depth_min=None, depth_max=None,
             f = threading.Thread(
                 target=thread_line,
                 args=(platform_code, parameter, fig_name, depth_min, depth_max,
-                      time_min, time_max, qc, True))
+                      time_min, time_max, qc, template, True))
             f.start()
 
             response = {
@@ -253,7 +263,7 @@ def get_line(platform_code, parameter, depth_min=None, depth_max=None,
 
         else:
             path_fig = thread_line(platform_code, parameter, fig_name, depth_min, depth_max,
-                                   time_min, time_max, qc)
+                                   time_min, time_max, qc, template)
 
             if path_fig:
                 response = {
@@ -445,7 +455,8 @@ def get_area(platform_code, parameter, depth_min=None, depth_max=None,
 
 def thread_parameter_availability(parameter, platform_code_list, fig_name,
                                   depth_min=None, depth_max=None, time_min=None,
-                                  time_max=None, qc=None, detached=False):
+                                  time_max=None, qc=None, template=None,
+                                  detached=False):
     """
     It creates an gantt figure, the x axis is the time and the y axis
     represents the aviability of the input parameter from the
@@ -476,6 +487,10 @@ def thread_parameter_availability(parameter, platform_code_list, fig_name,
             Examples: yyyy-MM-dd'T'HH:mm:ss.SSSZ or yyyy-MM-dd.
         qc: int
             Quality Control value of the measurement.
+        template: str
+            Options: 'ggplot2', 'seaborn', 'simple_white', 'plotly',
+            'plotly_white', 'plotly_dark', 'presentation', 'xgridoff',
+            'ygridoff' and 'gridon'.
         detached: bool
             If detached is True, the function makes an html with the message
             'no data found'.
@@ -551,7 +566,8 @@ def thread_parameter_availability(parameter, platform_code_list, fig_name,
                 y='Task',
                 color='Resource',
                 title=f'Data availability for {parameter}',
-                labels={'Task': 'Platform codes'})
+                labels={'Task': 'Platform codes'},
+                template=template)
 
             fig.update(layout_showlegend=False)
 
@@ -568,7 +584,7 @@ def thread_parameter_availability(parameter, platform_code_list, fig_name,
 
 def get_parameter_availability(parameter, depth_min=None, depth_max=None,
                                time_min=None, time_max=None, qc=None,
-                               multithread=True):
+                               template=None, multithread=True):
     """
     Make an parameter aviability (gantt) figure using Plotly.
 
@@ -592,6 +608,10 @@ def get_parameter_availability(parameter, depth_min=None, depth_max=None,
             Examples: yyyy-MM-dd'T'HH:mm:ss.SSSZ or yyyy-MM-dd.
         qc: int
             Quality Flag value of the measurement.
+        template: str
+            Options: 'ggplot2', 'seaborn', 'simple_white', 'plotly',
+            'plotly_white', 'plotly_dark', 'presentation', 'xgridoff',
+            'ygridoff' and 'gridon'.
         multithread: bool
             Getting the data and making the plot takes a while.
             This argument makes the figure with a secondary thread to avoid
@@ -612,7 +632,8 @@ def get_parameter_availability(parameter, depth_min=None, depth_max=None,
     time_min_str, time_max_str = time_to_str(time_min, time_max)
     # Create the filename
     fig_name = f'parameter_availability-{parameter}-dmin{depth_min}-' + \
-        f'dmax{depth_max}-tmin{time_min_str}-tmax{time_max_str}-qc{qc}'
+        f'dmax{depth_max}-tmin{time_min_str}-tmax{time_max_str}-qc{qc}' + \
+        f'template{template}'
 
     if not os.path.exists(f'{fig_folder}/{fig_name}.html'):
 
@@ -630,7 +651,7 @@ def get_parameter_availability(parameter, depth_min=None, depth_max=None,
                 j = threading.Thread(
                     target=thread_parameter_availability,
                     args=(parameter, platform_code_list, fig_name, depth_min,
-                          depth_max, time_min, time_max, qc, True))
+                          depth_max, time_min, time_max, qc, template, True))
                 j.start()
 
                 response = {
@@ -644,7 +665,7 @@ def get_parameter_availability(parameter, depth_min=None, depth_max=None,
                                                          platform_code_list,
                                                          fig_name, depth_min,
                                                          depth_max, time_min,
-                                                         time_max, qc)
+                                                         time_max, qc, template)
 
                 if path_fig:
                     response = {
@@ -668,7 +689,7 @@ def get_parameter_availability(parameter, depth_min=None, depth_max=None,
 
 def thread_platform_availability(platform_code, fig_name, depth_min=None,
                                  depth_max=None, time_min=None, time_max=None,
-                                 qc=None, detached=False):
+                                 qc=None, template=None, detached=False):
     """
     It creates an gantt figure, the x axis is the time and the y axis
     represents the aviability of the parameter of the input platform_code.
@@ -696,6 +717,10 @@ def thread_platform_availability(platform_code, fig_name, depth_min=None,
             Examples: yyyy-MM-dd'T'HH:mm:ss.SSSZ or yyyy-MM-dd.
         qc: int
             Quality Control value of the measurement.
+        template: str
+            Options: 'ggplot2', 'seaborn', 'simple_white', 'plotly',
+            'plotly_white', 'plotly_dark', 'presentation', 'xgridoff',
+            'ygridoff' and 'gridon'.
         detached: bool
             If detached is True, the function makes an html with the message
             'no data found'.
@@ -809,7 +834,8 @@ def thread_platform_availability(platform_code, fig_name, depth_min=None,
                 y='Task',
                 color='Resource',
                 # title=f'Data availability from {platform_code}',
-                labels={'Task': 'Parameters'})
+                labels={'Task': 'Parameters'},
+                template=template)
 
             fig.update(layout_showlegend=False)
             fig.update_layout(margin=dict(l=0, r=0, t=0, b=0))
@@ -827,7 +853,7 @@ def thread_platform_availability(platform_code, fig_name, depth_min=None,
 
 def get_platform_availability(platform_code, depth_min=None, depth_max=None,
                               time_min=None, time_max=None, qc=None,
-                              multithread=True):
+                              template=None, multithread=True):
     """
     Make an platform  aviability (gantt) figure using Plotly.
 
@@ -851,6 +877,10 @@ def get_platform_availability(platform_code, depth_min=None, depth_max=None,
             Examples: yyyy-MM-dd'T'HH:mm:ss.SSSZ or yyyy-MM-dd.
         qc: int
             Quality Flag value of the measurement.
+        template: str
+            Options: 'ggplot2', 'seaborn', 'simple_white', 'plotly',
+            'plotly_white', 'plotly_dark', 'presentation', 'xgridoff',
+            'ygridoff' and 'gridon'.
         multithread: bool
             Getting the data and making the plot takes a while.
             This argument makes the figure with a secondary thread to avoid
@@ -871,7 +901,8 @@ def get_platform_availability(platform_code, depth_min=None, depth_max=None,
     time_min_str, time_max_str = time_to_str(time_min, time_max)
     # Create the filename
     fig_name = f'platform_availability-{platform_code}-dmin{depth_min}' + \
-        f'-dmax{depth_max}-tmin{time_min_str}-tmax{time_max_str}-qc{qc}'
+        f'-dmax{depth_max}-tmin{time_min_str}-tmax{time_max_str}-qc{qc}' + \
+        f'-template{template}'
 
     if not os.path.exists(f'{fig_folder}/{fig_name}.html'):
 
@@ -894,7 +925,8 @@ def get_platform_availability(platform_code, depth_min=None, depth_max=None,
         else:
             path_fig =  thread_platform_availability(platform_code, fig_name,
                                                      depth_min, depth_max,
-                                                     time_min, time_max, qc)
+                                                     time_min, time_max, qc,
+                                                     template)
             if path_fig:
                 response = {
                     'status': True,
@@ -915,7 +947,7 @@ def get_platform_availability(platform_code, depth_min=None, depth_max=None,
 
 
 def get_parameter_pie(rule, platform_code=None, depth_min=None, depth_max=None,
-                      time_min=None, time_max=None, qc=None):
+                      time_min=None, time_max=None, qc=None, template=None):
     """
     Make an parameter aviability (Pie Chart) figure using Plotly.
 
@@ -941,6 +973,10 @@ def get_parameter_pie(rule, platform_code=None, depth_min=None, depth_max=None,
             Examples: yyyy-MM-dd'T'HH:mm:ss.SSSZ or yyyy-MM-dd.
         qc: int
             Quality Flag value of the measurement.
+        template: str
+            Options: 'ggplot2', 'seaborn', 'simple_white', 'plotly',
+            'plotly_white', 'plotly_dark', 'presentation', 'xgridoff',
+            'ygridoff' and 'gridon'.
     
     Returns
     -------
@@ -957,7 +993,8 @@ def get_parameter_pie(rule, platform_code=None, depth_min=None, depth_max=None,
     time_min_str, time_max_str = time_to_str(time_min, time_max)
 
     fig_name = f'parameter_pie-r{rule}-plat{platform_code}-dmin{depth_min}' + \
-        f'-dmax{depth_max}-tmin{time_min_str}-tmax{time_max_str}-qc{qc}'
+        f'-dmax{depth_max}-tmin{time_min_str}-tmax{time_max_str}-qc{qc}' + \
+        f'-template{template}'
 
 
     if not os.path.exists(f'{fig_folder}/{fig_name}.html'):
@@ -975,7 +1012,7 @@ def get_parameter_pie(rule, platform_code=None, depth_min=None, depth_max=None,
         if parameter_list:
             # Create DataFrame
             df = pd.DataFrame(parameter_list)
-            fig = px.pie(df, values='doc_count', names='key',
+            fig = px.pie(df, values='doc_count', names='key', template=template,
                          labels={'key': 'Parameter',
                                  'doc_count': 'Measurements'})
             fig.update_layout(margin=dict(l=0, r=0, t=0, b=0))
@@ -999,7 +1036,7 @@ def get_parameter_pie(rule, platform_code=None, depth_min=None, depth_max=None,
 
 
 def get_platform_pie(rule, parameter=None, depth_min=None, depth_max=None,
-                     time_min=None, time_max=None, qc=None):
+                     time_min=None, time_max=None, qc=None, template=None):
     """
     Make an platform data number (Pie Chart) figure using Plotly.
 
@@ -1025,6 +1062,10 @@ def get_platform_pie(rule, parameter=None, depth_min=None, depth_max=None,
             Examples: yyyy-MM-dd'T'HH:mm:ss.SSSZ or yyyy-MM-dd.
         qc: int
             Quality Flag value of the measurement.
+        template: str
+            Options: 'ggplot2', 'seaborn', 'simple_white', 'plotly',
+            'plotly_white', 'plotly_dark', 'presentation', 'xgridoff',
+            'ygridoff' and 'gridon'.
     
     Returns
     -------
@@ -1041,7 +1082,8 @@ def get_platform_pie(rule, parameter=None, depth_min=None, depth_max=None,
     time_min_str, time_max_str = time_to_str(time_min, time_max)
 
     fig_name = f'platform_pie-r{rule}-param{parameter}-dmin{depth_min}' + \
-        f'-dmax{depth_max}-tmin{time_min_str}-tmax{time_max_str}-qc{qc}'
+        f'-dmax{depth_max}-tmin{time_min_str}-tmax{time_max_str}-qc{qc}' + \
+        f'-template{template}'
 
     if not os.path.exists(f'{fig_folder}/{fig_name}.html'):
 
@@ -1076,7 +1118,8 @@ def get_platform_pie(rule, parameter=None, depth_min=None, depth_max=None,
         if data_content:
             # Create DataFrame
             df = pd.DataFrame(data_content)
-            fig = px.pie(df, values='Measurements', names='Platform Code')
+            fig = px.pie(df, values='Measurements', names='Platform Code',
+                         template=template)
 
             plotly.io.write_html(fig, f'{fig_folder}/{fig_name}.html',
                                  config=config_fig, include_plotlyjs='cdn')
@@ -1101,7 +1144,8 @@ def get_platform_pie(rule, parameter=None, depth_min=None, depth_max=None,
 
 
 def get_map(rule, platform_code=None, parameter=None, depth_min=None,
-            depth_max=None, time_min=None, time_max=None, qc=None):
+            depth_max=None, time_min=None, time_max=None, qc=None,
+            template=None):
     """
     Make a map with the points where we have data that match with the input
     parameters.append()
@@ -1130,6 +1174,10 @@ def get_map(rule, platform_code=None, parameter=None, depth_min=None,
             Examples: yyyy-MM-dd'T'HH:mm:ss.SSSZ or yyyy-MM-dd.
         qc: int
             Quality Flag value of the measurement.
+        template: str
+            Options: 'ggplot2', 'seaborn', 'simple_white', 'plotly',
+            'plotly_white', 'plotly_dark', 'presentation', 'xgridoff',
+            'ygridoff' and 'gridon'
     
     Returns
     -------
@@ -1147,7 +1195,7 @@ def get_map(rule, platform_code=None, parameter=None, depth_min=None,
 
     fig_name = f'map-r{rule}-plat{platform_code}-param{parameter}' + \
         f'-dmin{depth_min}-dmax{depth_max}-tmin{time_min_str}' + \
-        f'-tmax{time_max_str}-qc{qc}'
+        f'-tmax{time_max_str}-qc{qc}-template{template}'
 
     if not os.path.exists(f'{fig_folder}/{fig_name}.html'):
 
@@ -1218,7 +1266,7 @@ def get_map(rule, platform_code=None, parameter=None, depth_min=None,
                                 lat=geo_df['lat'],
                                 lon=geo_df['lon'],
                                 hover_name='platform_code',
-                                zoom=1)
+                                zoom=1, template=template)
         fig.update_layout(margin=dict(l=0, r=0, t=0, b=0))
 
         plotly.io.write_html(fig, f'{fig_folder}/{fig_name}.html',

@@ -773,7 +773,7 @@ def get_metadata_id(platform_code: str):
     elastic = Elasticsearch(elastic_host)
 
     try:
-        el_response = elastic.get(metadata_index, platform_code)
+        el_response = elastic.get(index=metadata_index, id=platform_code)
         if el_response.get('found'):
             response = {
                 'status': True,
