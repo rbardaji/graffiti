@@ -283,7 +283,7 @@ def get_line(platform_code, parameter, depth_min=None, depth_max=None,
     return response, status_code
 
 
-def thread_area(platform_code, parameter, fig_name, depth_min=None,
+def thread_area(platform_code_list, parameter, fig_name, depth_min=None,
                 depth_max=None, time_min=None, time_max=None, qc=None,
                 template=None, detached=False):
     """
@@ -329,21 +329,23 @@ def thread_area(platform_code, parameter, fig_name, depth_min=None,
             Location of the figure (html file). If there is no data or a db
             connection error, it returns False
     """
-    rule = get_rule(platform_code, parameter, depth_min, depth_max, time_min,
-                    time_max, qc)  # rule is False if there is a db connection
-                                   # error
+    rule = get_rule(platform_code_list, parameter, depth_min, depth_max,
+                    time_min, time_max, qc)  # rule is False if there is a db connection
+                                             # error
 
     if rule:
-        df = get_df(platform_code, parameter, rule, depth_min, depth_max,
+        df = get_df(platform_code_list, parameter, rule, depth_min, depth_max,
                     time_min, time_max, qc)
 
+        print(df.head())
         figure_path = f'{fig_folder}/{fig_name}.html'
 
         if df.empty:
             figure_path = False
         else:
             fig = px.area(df, x='time', y='value', color='depth',
-                          line_group='platform_code', template=template)
+                          line_group='platform_code', template=template,
+                          line_shape='spline', symbol='parameter')
 
             plotly.io.write_html(fig, figure_path, config=config_fig, 
                                  include_plotlyjs='cdn')
@@ -357,7 +359,7 @@ def thread_area(platform_code, parameter, fig_name, depth_min=None,
     return figure_path
 
 
-def get_area(platform_code, parameter, depth_min=None, depth_max=None,
+def get_area(platform_code_list, parameter, depth_min=None, depth_max=None,
              time_min=None, time_max=None, qc=None, template=None,
              multithread=True):
     """
@@ -366,7 +368,7 @@ def get_area(platform_code, parameter, depth_min=None, depth_max=None,
 
     Parameters
     ----------
-        platform_code: str
+        platform_code_list: str or list of str
             Platform code
         parameter: str
             Variable to plot in the y axis.
@@ -406,11 +408,14 @@ def get_area(platform_code, parameter, depth_min=None, depth_max=None,
             The status_code is always 201 (created) if multithread = True,
             otherwhise status_code can be 404 if data is not found.
     """
+    if isinstance(platform_code_list, str):
+        platform_code_list = [platform_code_list]
+
     time_min_str, time_max_str =time_to_str(time_min, time_max)
     # Create the filename
-    fig_name = f'area-{platform_code}-{parameter}-dmin{depth_min}' + \
-        f'-dmax{depth_max}-tmin{time_min_str}-tmax{time_max_str}-qc{qc}' + \
-        f'-template{template}'
+    fig_name = f'area-{(",").join(platform_code_list)}-{parameter}' + \
+        f'-dmin{depth_min}-dmax{depth_max}-tmin{time_min_str}' + \
+        f'-tmax{time_max_str}-qc{qc}-template{template}'
 
     if not os.path.exists(f'{fig_folder}/{fig_name}.html'):
 
@@ -419,8 +424,8 @@ def get_area(platform_code, parameter, depth_min=None, depth_max=None,
         if multithread:
             f = threading.Thread(
                 target=thread_area,
-                args=(platform_code, parameter, fig_name, depth_min, depth_max,
-                      time_min, time_max, qc, template, True))
+                args=(platform_code_list, parameter, fig_name, depth_min,
+                      depth_max, time_min, time_max, qc, template, True))
             f.start()
 
             response = {
@@ -430,7 +435,7 @@ def get_area(platform_code, parameter, depth_min=None, depth_max=None,
                 'result': [f'{fig_url}/{fig_name}.html']}
             status_code = 201
         else:
-            path_fig = thread_area(platform_code, parameter, fig_name,
+            path_fig = thread_area(platform_code_list, parameter, fig_name,
                                    depth_min, depth_max, time_min, time_max, qc,
                                    template)
 

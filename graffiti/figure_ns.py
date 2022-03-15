@@ -53,7 +53,7 @@ advanced_parser.add_argument('trendline', type=str, help='Make a trendline',
 
 
 @api.route('/area/<string:platform_code>/<string:parameter>')
-@api.param('platform_code', 'Platform code')
+@api.param('platform_code', 'Platform code (you can write multiple platforms separated by ,)')
 @api.param('parameter', 'Parameter acronym')
 @api.response(401, 'Invalid token')
 @api.response(404, 'Data not found')
@@ -75,7 +75,9 @@ class GetArea(Resource):
         qc = request.args.get("qc")
         template = request.args.get('template')
 
-        return get_area(platform_code, parameter, depth_min, depth_max,
+        platform_code_list = platform_code.split(',')
+
+        return get_area(platform_code_list, parameter, depth_min, depth_max,
                         time_min, time_max, qc, template, False)
 
 

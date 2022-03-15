@@ -311,16 +311,16 @@ def get_data_id(id_data, rule=None):
     return response, status_code
 
 
-def get_df(platform_code, parameter, rule, depth_min=None, depth_max=None,
-           time_min=None, time_max=None, qc=None):
+def get_df(platform_code_list, parameter_list, rule, depth_min=None,
+           depth_max=None, time_min=None, time_max=None, qc=None):
     """
     Get data from the database and make a pandas DataFrame.
 
     Parameters
     ----------
-        platform_code: str
+        platform_code_list: str or list of str
             Platform code
-        parameter: str
+        parameter_list: str or list of str
             Variable to add to the DataFrame.
         rule: str
             Rule of the average values to get the data.
@@ -346,81 +346,95 @@ def get_df(platform_code, parameter, rule, depth_min=None, depth_max=None,
     -------
         df: pandas DataFrame
     """
+    if isinstance(platform_code_list, str):
+        platform_code_list = [platform_code_list]
+    if isinstance(parameter_list, str):
+        parameter_list = [parameter_list]
 
     time_min_str, time_max_str = time_to_str(time_min, time_max)
 
-    df_name = f'{platform_code}_{parameter}_{rule}_dmin{depth_min}' + \
-        f'_dmax{depth_max}_tmin{time_min_str}_tmax{time_max_str}_qc{qc}'
+    df = pd.DataFrame()
 
-    if not os.path.exists(f'{df_folder}/{df_name}.pkl'):
+    for platform_code in platform_code_list:
+        for parameter in parameter_list:
+            df_name = f'{platform_code}_{parameter}_{rule}_dmin{depth_min}' + \
+                f'_dmax{depth_max}_tmin{time_min_str}_tmax{time_max_str}_qc{qc}'
 
-        # Check if folder exist
-        if not os.path.exists(df_folder):
-            os.makedirs(df_folder)
+            if not os.path.exists(f'{df_folder}/{df_name}.pkl'):
 
-        # Get all data from 'platform_code'
-        search_string = '{"platform_code":' + f'"{platform_code}"' + \
-            ',"parameter":' + f'"{parameter}"' + '}'
-        if depth_min:
-            search_string = search_string[:-1] + \
-                f',"depth_min":{depth_min}' + '}'
-        if depth_max:
-            search_string = search_string[:-1] + \
-                f',"depth_max":{depth_max}' + '}'
-        if time_min:
-            search_string = search_string[:-1] + \
-                f',"time_min":"{time_min}"' + '}'
-        if time_max:
-            search_string = search_string[:-1] + \
-                f',"time_max":"{time_max}"' + '}'
-        if qc:
-            search_string = search_string[:-1] + \
-                f',"qc":{qc}' + '}'
+                # Check if folder exist
+                if not os.path.exists(df_folder):
+                    os.makedirs(df_folder)
 
-        response, status_code = get_data(search_string, rule)
+                # Get all data from 'platform_code'
+                search_string = '{"platform_code":' + f'"{platform_code}"' + \
+                    ',"parameter":' + f'"{parameter}"' + '}'
+                if depth_min:
+                    search_string = search_string[:-1] + \
+                        f',"depth_min":{depth_min}' + '}'
+                if depth_max:
+                    search_string = search_string[:-1] + \
+                        f',"depth_max":{depth_max}' + '}'
+                if time_min:
+                    search_string = search_string[:-1] + \
+                        f',"time_min":"{time_min}"' + '}'
+                if time_max:
+                    search_string = search_string[:-1] + \
+                        f',"time_max":"{time_max}"' + '}'
+                if qc:
+                    search_string = search_string[:-1] + \
+                        f',"qc":{qc}' + '}'
 
-        data_id_list = response['result']
-        data = []
-        for data_id in data_id_list:
-            response, status_code = get_data_id(data_id, rule)
+                response, status_code = get_data(search_string, rule)
+
+                data_id_list = response['result']
+                data = []
+                for data_id in data_id_list:
+                    response, status_code = get_data_id(data_id, rule)
 
 
-            if status_code != 200:
-                return response, status_code
+                    if status_code != 200:
+                        return response, status_code
 
-            # Some data has erroneus values, let's delete it
-            if float(
-                response['result'][0][data_id]['value']) > 40 and \
-                    parameter == 'TEMP':
-                continue
-            if float(
-                response['result'][0][data_id]['value']) < 1 and \
-                    parameter == 'TEMP':
-                continue
-            if float(
-                response['result'][0][data_id]['value']) < 30 and \
-                    parameter == 'PSAL':
-                continue
-            if platform_code == 'OBSEA' and \
-                float(response['result'][0][data_id]['value']) < 10 and \
-                    parameter == 'TEMP':
-                continue
-            if platform_code == 'OBSEA' and \
-                float(response['result'][0][data_id]['value']) > 30 and \
-                    parameter == 'TEMP':
-                continue
+                    # Some data has erroneus values, let's delete it
+                    if float(
+                        response['result'][0][data_id]['value']) > 40 and \
+                            parameter == 'TEMP':
+                        continue
+                    if float(
+                        response['result'][0][data_id]['value']) < 1 and \
+                            parameter == 'TEMP':
+                        continue
+                    if float(
+                        response['result'][0][data_id]['value']) < 30 and \
+                            parameter == 'PSAL':
+                        continue
+                    if platform_code == 'OBSEA' and \
+                        float(response['result'][0][data_id]['value']) < 10 and \
+                            parameter == 'TEMP':
+                        continue
+                    if platform_code == 'OBSEA' and \
+                        float(response['result'][0][data_id]['value']) > 30 and \
+                            parameter == 'TEMP':
+                        continue
 
-            data.append(response['result'][0][data_id])
+                    data.append(response['result'][0][data_id])
 
-        if data:
-            df = pd.DataFrame(data)
-            df = df.sort_values(by='time')
-            df.to_pickle(f'{df_folder}/{df_name}.pkl')
-        else:
-            df = pd.DataFrame()
-        return df
+                if data:
+                    df_part = pd.DataFrame(data)
+                    df_part = df_part.sort_values(by='time')
+                    df_part.to_pickle(f'{df_folder}/{df_name}.pkl')
+                else:
+                    df_part = pd.DataFrame()
+            else:
+                df_part = pd.read_pickle(f'{df_folder}/{df_name}.pkl')
 
-    df = pd.read_pickle(f'{df_folder}/{df_name}.pkl')
+            if not df_part.empty:
+                if df.empty:
+                    # Copy the first time
+                    df = df_part.copy()
+                else:
+                    df = pd.concat([df, df_part])
     return df
 
 
