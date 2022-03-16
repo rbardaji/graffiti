@@ -30,13 +30,16 @@ fig_parser.add_argument('template', type=str, help='Layout template',
 
 
 platform_parser = fig_parser.copy()
-platform_parser.add_argument('platform_code', type=str, help='Platform code')
+platform_parser.add_argument('platform_code', type=str, help='Platform code',
+                             action='split')
 
 parameter_parser = fig_parser.copy()
-parameter_parser.add_argument('parameter', type=str, help='Parameter acronym')
+parameter_parser.add_argument('parameter', type=str, help='Parameter acronym',
+                              action='split')
 
 complete_parser = platform_parser.copy()
-complete_parser.add_argument('parameter', type=str, help='Parameter acronym')
+complete_parser.add_argument('parameter', type=str, help='Parameter acronym',
+                             action='split')
 
 advanced_parser = fig_parser.copy()
 advanced_parser.add_argument('color', type=str,
@@ -54,7 +57,7 @@ advanced_parser.add_argument('trendline', type=str, help='Make a trendline',
 
 @api.route('/area/<string:platform_code>/<string:parameter>')
 @api.param('platform_code', 'Platform code (you can write multiple platforms separated by ,)')
-@api.param('parameter', 'Parameter acronym (you can write multiple platforms separated by ,)pyth')
+@api.param('parameter', 'Parameter acronym (you can write multiple platforms separated by ,)')
 @api.response(401, 'Invalid token')
 @api.response(404, 'Data not found')
 @api.response(503, 'Connection error with the DB')
@@ -83,8 +86,8 @@ class GetArea(Resource):
 
 
 @api.route('/line/<string:platform_code>/<string:parameter>')
-@api.param('platform_code', 'Platform code')
-@api.param('parameter', 'Parameter acronym')
+@api.param('platform_code', 'Platform code (you can write multiple platforms separated by ,)')
+@api.param('parameter', 'Parameter acronym (you can write multiple platforms separated by ,)')
 @api.response(204, 'Data not found')
 @api.response(401, 'Invalid token')
 @api.response(503, 'Connection error with the DB')
@@ -181,6 +184,10 @@ class GetFigParameterPie(Resource):
         Obtain a graph with the number of data available for each parameter
         """
         platform_code = request.args.get("platform_code")
+        if platform_code:
+            platform_code_list = platform_code.split(',')
+        else:
+            platform_code_list = None
         depth_min = request.args.get("depth_min")
         depth_max = request.args.get("depth_max")
         time_min = request.args.get("time_min")
@@ -188,7 +195,7 @@ class GetFigParameterPie(Resource):
         qc = request.args.get("qc")
         template = request.args.get('template')
 
-        return get_parameter_pie(rule, platform_code, depth_min, depth_max,
+        return get_parameter_pie(rule, platform_code_list, depth_min, depth_max,
                                  time_min, time_max, qc, template)
 
 
@@ -208,6 +215,10 @@ class GetFigPlatformPie(Resource):
         Obtain a graph with the number of data available for each platform
         """
         parameter = request.args.get("parameter")
+        if parameter:
+            parameter_list = parameter.split(',')
+        else:
+            parameter_list = None
         depth_min = request.args.get("depth_min")
         depth_max = request.args.get("depth_max")
         time_min = request.args.get("time_min")
@@ -215,8 +226,8 @@ class GetFigPlatformPie(Resource):
         qc = request.args.get("qc")
         template = request.args.get('template')
 
-        return get_platform_pie(rule, parameter, depth_min, depth_max, time_min,
-                                time_max, qc, template)
+        return get_platform_pie(rule, parameter_list, depth_min, depth_max,
+                                time_min, time_max, qc, template)
 
 
 @api.route('/map/<string:rule>')
@@ -237,7 +248,15 @@ class GetFigMap(Resource):
         Obtain a map with the location of the data sources
         """
         platform_code = request.args.get("platform_code")
+        if platform_code:
+            platform_code_list = platform_code.split(',')
+        else:
+            platform_code_list = None
         parameter = request.args.get("parameter")
+        if parameter:
+            parameter_list = parameter.split(',')
+        else:
+            parameter_list = None
         depth_min = request.args.get("depth_min")
         depth_max = request.args.get("depth_max")
         time_min = request.args.get("time_min")
@@ -245,11 +264,11 @@ class GetFigMap(Resource):
         qc = request.args.get("qc")
         template = request.args.get('template')
 
-        return get_map(rule, platform_code, parameter, depth_min, depth_max,
-                       time_min, time_max, qc, template)
+        return get_map(rule, platform_code_list, parameter_list, depth_min,
+                       depth_max, time_min, time_max, qc, template)
 
 
-@api.route('/scatter/<string:platform_code>/<string:x>/<string:y>')
+@api.route('/scatter/<string:platform_code_x>/<string:parameter_x>/<string:platform_code_y>/<string:parameter_y>')
 @api.param('platform_code', 'Platform Code')
 @api.param('x', 'Parameter in x axis')
 @api.param('y', 'Parameter in y axis')
@@ -262,7 +281,7 @@ class GetScatter(Resource):
     @api.expect(advanced_parser)
     @token_required
     @save_request
-    def get(self, platform_code, x, y):
+    def get(self, platform_code_x, parameter_x, platform_code_y, parameter_y):
         """
         Obtain a time series line plot
         """
@@ -277,6 +296,7 @@ class GetScatter(Resource):
         time_max = request.args.get("time_max")
         qc = request.args.get("qc")
 
-        return get_scatter(platform_code, x, y, color, marginal_x, marginal_y,
+        return get_scatter(platform_code_x, parameter_x, platform_code_y,
+                           parameter_y, color, marginal_x, marginal_y,
                            trendline, template, depth_min, depth_max, time_min,
                            time_max, qc, False)

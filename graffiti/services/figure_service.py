@@ -960,8 +960,9 @@ def get_platform_availability(platform_code, depth_min=None, depth_max=None,
     return response, status_code
 
 
-def get_parameter_pie(rule, platform_code=None, depth_min=None, depth_max=None,
-                      time_min=None, time_max=None, qc=None, template=None):
+def get_parameter_pie(rule, platform_code_list=None, depth_min=None,
+                      depth_max=None, time_min=None, time_max=None, qc=None,
+                      template=None):
     """
     Make an parameter aviability (Pie Chart) figure using Plotly.
 
@@ -969,7 +970,7 @@ def get_parameter_pie(rule, platform_code=None, depth_min=None, depth_max=None,
     ----------
         rule: str
             Index rule
-        platform_code: str
+        platform_code_list: str or list of str
             Platform Code
         depth_min: float
             Minimum depth of the measurement.
@@ -1004,18 +1005,25 @@ def get_parameter_pie(rule, platform_code=None, depth_min=None, depth_max=None,
             otherwhise status_code can be 404 if data is not found or 503 to
             indicate db connection errors.
     """
+    if platform_code_list is None:
+        platform_code_list_str = ["None"]
+    elif isinstance(platform_code_list, str):
+        platform_code_list = [platform_code_list]
+        platform_code_list_str = [platform_code_list]
+    else:
+        platform_code_list_str = platform_code_list
+
     time_min_str, time_max_str = time_to_str(time_min, time_max)
 
-    fig_name = f'parameter_pie-r{rule}-plat{platform_code}-dmin{depth_min}' + \
-        f'-dmax{depth_max}-tmin{time_min_str}-tmax{time_max_str}-qc{qc}' + \
-        f'-template{template}'
-
+    fig_name = f'parameter_pie-r{rule}-plat{(",").join(platform_code_list_str)}' + \
+        f'-dmin{depth_min}-dmax{depth_max}-tmin{time_min_str}' + \
+        f'-tmax{time_max_str}-qc{qc}-template{template}'
 
     if not os.path.exists(f'{fig_folder}/{fig_name}.html'):
 
         create_fig_folder()
 
-        response, status_code = get_parameter(platform_code, depth_min,
+        response, status_code = get_parameter(platform_code_list, depth_min,
                                               depth_max, time_min, time_max, qc,
                                               rule)
         if status_code != 200:
@@ -1049,7 +1057,7 @@ def get_parameter_pie(rule, platform_code=None, depth_min=None, depth_max=None,
     return response, status_code
 
 
-def get_platform_pie(rule, parameter=None, depth_min=None, depth_max=None,
+def get_platform_pie(rule, parameter_list=None, depth_min=None, depth_max=None,
                      time_min=None, time_max=None, qc=None, template=None):
     """
     Make an platform data number (Pie Chart) figure using Plotly.
@@ -1058,7 +1066,7 @@ def get_platform_pie(rule, parameter=None, depth_min=None, depth_max=None,
     ----------
         rule: str
             Index rule
-        parameter: str
+        parameter_list: str or list of str
             Parameter acronym
         depth_min: float
             Minimum depth of the measurement.
@@ -1093,9 +1101,18 @@ def get_platform_pie(rule, parameter=None, depth_min=None, depth_max=None,
             otherwhise status_code can be 404 if data is not found or 503 to
             indicate db connection errors.
     """
+    if parameter_list is None:
+        parameter_list_str = ["None"]
+    elif isinstance(parameter_list, str):
+        parameter_list = [parameter_list]
+        parameter_list_str = [parameter_list]
+    else:
+        parameter_list_str = parameter_list
+    
     time_min_str, time_max_str = time_to_str(time_min, time_max)
 
-    fig_name = f'platform_pie-r{rule}-param{parameter}-dmin{depth_min}' + \
+    fig_name = f'platform_pie-r{rule}-param{(",").join(parameter_list_str)}' + \
+        f'-dmin{depth_min}' + \
         f'-dmax{depth_max}-tmin{time_min_str}-tmax{time_max_str}-qc{qc}' + \
         f'-template{template}'
 
@@ -1116,7 +1133,7 @@ def get_platform_pie(rule, parameter=None, depth_min=None, depth_max=None,
 
             response, status_code = get_data_count(rule,
                                                    platform_code=platform_code,
-                                                   parameter=parameter,
+                                                   parameter=parameter_list,
                                                    depth_min=depth_min,
                                                    depth_max=depth_max,
                                                    time_min=time_min,
@@ -1157,7 +1174,7 @@ def get_platform_pie(rule, parameter=None, depth_min=None, depth_max=None,
     return response, status_code
 
 
-def get_map(rule, platform_code=None, parameter=None, depth_min=None,
+def get_map(rule, platform_code_list=None, parameter_list=None, depth_min=None,
             depth_max=None, time_min=None, time_max=None, qc=None,
             template=None):
     """
@@ -1168,9 +1185,9 @@ def get_map(rule, platform_code=None, parameter=None, depth_min=None,
     ----------
         rule: str
             Index rule
-        platform_code: str
+        platform_code_list: str or list of str
             Platform code
-        parameter: str
+        parameter_list: str or list of str
             Parameter acronym
         depth_min: float
             Minimum depth of the measurement.
@@ -1205,9 +1222,26 @@ def get_map(rule, platform_code=None, parameter=None, depth_min=None,
             otherwhise status_code can be 404 if data is not found or 503 to
             indicate db connection errors.
     """
+    if parameter_list is None:
+        parameter_list_str = ["None"]
+    elif isinstance(parameter_list, str):
+        parameter_list = [parameter_list]
+        parameter_list_str = [parameter_list]
+    else:
+        parameter_list_str = parameter_list
+    
+    if platform_code_list is None:
+        platform_code_list_str = ["None"]
+    elif isinstance(platform_code_list, str):
+        platform_code_list = [platform_code_list]
+        platform_code_list_str = [platform_code_list]
+    else:
+        platform_code_list_str = platform_code_list
+
     time_min_str, time_max_str = time_to_str(time_min, time_max)
 
-    fig_name = f'map-r{rule}-plat{platform_code}-param{parameter}' + \
+    fig_name = f'map-r{rule}-plat{(",").join(platform_code_list_str)}' + \
+        f'-param{(",").join(parameter_list_str)}' + \
         f'-dmin{depth_min}-dmax{depth_max}-tmin{time_min_str}' + \
         f'-tmax{time_max_str}-qc{qc}-template{template}'
 
@@ -1217,17 +1251,15 @@ def get_map(rule, platform_code=None, parameter=None, depth_min=None,
         if not os.path.exists(fig_folder):
             os.makedirs(fig_folder)
 
-        if platform_code:
-            platform_codes = [platform_code]
-        else:
+        if platform_code_list is None:
             # Get metadata list
             response, status_code = get_metadata()
             if status_code != 200:
                 return response, status_code
             
-            platform_codes = response['result']
+            platform_code_list = response['result']
 
-        if not platform_codes:
+        if not platform_code_list:
             abort(404, 'Data not found')
 
         latitudes = []
@@ -1235,10 +1267,10 @@ def get_map(rule, platform_code=None, parameter=None, depth_min=None,
         parameters = []
         start_dates = []
         end_dates = []
-        for platform in platform_codes:
+        for platform in platform_code_list:
 
             response, status_code = get_data_count(rule, platform_code=platform,
-                                                   parameter=parameter,
+                                                   parameter=parameter_list,
                                                    depth_min=depth_min,
                                                    depth_max=depth_max,
                                                    time_min=time_min,
@@ -1270,8 +1302,8 @@ def get_map(rule, platform_code=None, parameter=None, depth_min=None,
 
         geo_df = pd.DataFrame(
             list(zip(
-                latitudes, longitudes, platform_codes, parameters, start_dates,
-                end_dates)),
+                latitudes, longitudes, platform_code_list, parameters,
+                start_dates, end_dates)),
             columns =['lat', 'lon', 'platform_code', 'parameters', 'start_date',
                       'end_date'])
 
@@ -1296,37 +1328,59 @@ def get_map(rule, platform_code=None, parameter=None, depth_min=None,
     return response, status_code
 
 
-def thread_scatter(platform_code, x, y, fig_name, color=None, marginal_x=None,
+def thread_scatter(platform_code_x, parameter_x, platform_code_y, parameter_y,
+                   fig_name, color=None, marginal_x=None,
                    marginal_y=None, trendline=None, template=None,
                    depth_min=None, depth_max=None, time_min=None, time_max=None,
                    qc=None, detached=False):
 
-    parameter_list = [x, y, color]
-    rule = get_rule(platform_code, parameter_list, depth_min, depth_max,
+    platform_code_list = [platform_code_x, platform_code_y]
+    parameter_list = [parameter_x, parameter_y, color]
+    rule = get_rule(platform_code_list, parameter_list, depth_min, depth_max,
                     time_min, time_max, qc)  # rule is False if there is a db
                                              # connection error
 
     if rule:
 
         figure_path = f'{fig_folder}/{fig_name}.html'
+
         # Get x
-        df_x = get_df(platform_code, x, rule, depth_min, depth_max,
+        df_x = get_df(platform_code_x, parameter_x, rule, depth_min, depth_max,
                       time_min, time_max, qc)
         df_x.set_index(['depth', 'time'], inplace=True)
-        df_x.rename(columns={'value': x}, inplace=True)
+        df_x.rename(columns={'value': f'{platform_code_x}-{parameter_x}'},
+                    inplace=True)
 
-        # Get y
-        df_y = get_df(platform_code, y, rule, depth_min, depth_max,
+        # # Get y
+        df_y = get_df(platform_code_y, parameter_y, rule, depth_min, depth_max,
                       time_min, time_max, qc)
         df_y.set_index(['depth', 'time'], inplace=True)
-        df_y.rename(columns={'value': y}, inplace=True)
+        df_y.rename(columns={'value': f'{platform_code_y}-{parameter_y}'},
+                    inplace=True)
 
-        df = df_x.join(df_y, how='left', lsuffix=f'_{x}', rsuffix=f'_{y}')
-        df.reset_index(inplace=True)
+        if parameter_x == parameter_y:
+            df = df_x.join(df_y, how='left',
+                           lsuffix=f'_{parameter_x}', rsuffix=f'_{parameter_y}')
+            df.reset_index(inplace=True)
+            print('XX')
+            print(df[f'{platform_code_x}-{parameter_x}'].head())
+            print('YY')
+            print(df[f'{platform_code_y}-{parameter_y}'].head())
 
-        fig = px.scatter(df, x=x, y=y, color=color, marginal_x=marginal_x,
-                         marginal_y=marginal_y, trendline=trendline,
-                         template=template)
+            fig = px.scatter(df, x=f'{platform_code_x}-{parameter_x}',
+                             y=f'{platform_code_y}-{parameter_y}', color=color,
+                             marginal_x=marginal_x,
+                             marginal_y=marginal_y, trendline=trendline,
+                             template=template)
+        else:
+            df = df_x.join(df_y, how='left',
+                           lsuffix=f'_{parameter_x}', rsuffix=f'_{parameter_y}')
+            df.reset_index(inplace=True)
+            fig = px.scatter(df, x=f'{platform_code_x}-{parameter_x}',
+                             y=f'{platform_code_y}-{parameter_y}', color=color,
+                             marginal_x=marginal_x,
+                             marginal_y=marginal_y, trendline=trendline,
+                             template=template)
 
         plotly.io.write_html(fig, f'{fig_folder}/{fig_name}.html',
                              config=config_fig, include_plotlyjs='cdn')
@@ -1340,7 +1394,8 @@ def thread_scatter(platform_code, x, y, fig_name, color=None, marginal_x=None,
     return figure_path
 
 
-def get_scatter(platform_code, x, y, color=None, marginal_x=None,
+def get_scatter(platform_code_x, paramerer_x, platform_code_y, parameter_y,
+                color=None, marginal_x=None,
                 marginal_y=None, trendline=None, template=None, depth_min=None,
                 depth_max=None, time_min=None, time_max=None, qc=None,
                 multithread=True):
@@ -1349,14 +1404,16 @@ def get_scatter(platform_code, x, y, color=None, marginal_x=None,
 
     Parameters
     ----------
-        platform_code: str
-            Platform code
-        x: str
+        platform_code_x: str
+            Platform code in the x axis.
+        parameter_x: str
             Variable to plot in the x axis.
-        y: str
+        platform_code_y: str
+            Variable to plot in the y axis.
+        parameter_y: str
             Variable to plot in the y axis.
         color: str
-            Variable that defines the color of the dots.
+            Variable that defines the color of the dots. (depth or time)
         marginal_x: str
             Type of chart to be included in the x axis.
         marginal_y: str
@@ -1400,7 +1457,9 @@ def get_scatter(platform_code, x, y, color=None, marginal_x=None,
     time_min_str, time_max_str = time_to_str(time_min, time_max)
 
     # Create the filename
-    fig_name = f'scatter-{platform_code}-X{x}-Y{y}-C{color}-MX{marginal_x}' + \
+    fig_name = f'scatter-platX{platform_code_x}-paramX{paramerer_x}' + \
+        f'-platY{platform_code_y}-paramY{parameter_y}-C{color}' + \
+        f'-MX{marginal_x}' + \
         f'-MY-{marginal_y}-TL-{trendline}-TM-{template}-dmin{depth_min}' + \
         f'-dmax{depth_max}-tmin{time_min_str}-tmax{time_max_str}-qc{qc}'
 
@@ -1411,7 +1470,8 @@ def get_scatter(platform_code, x, y, color=None, marginal_x=None,
         if multithread:
             f = threading.Thread(
                 target=thread_scatter,
-                args=(platform_code, x, y, fig_name, color, marginal_x,
+                args=(platform_code_x, paramerer_x, platform_code_y,
+                      parameter_y, fig_name, color, marginal_x,
                       marginal_y, trendline, template, depth_min, depth_max,
                       time_min, time_max, qc, True))
             f.start()
@@ -1424,7 +1484,9 @@ def get_scatter(platform_code, x, y, color=None, marginal_x=None,
             status_code = 201
 
         else:
-            path_fig = thread_scatter(platform_code, x, y, fig_name, color,
+            path_fig = thread_scatter(platform_code_x, paramerer_x,
+                                      platform_code_y, parameter_y, fig_name,
+                                      color,
                                       marginal_x, marginal_y, trendline,
                                       template, depth_min, depth_max, time_min,
                                       time_max, qc, False)
@@ -1432,7 +1494,7 @@ def get_scatter(platform_code, x, y, color=None, marginal_x=None,
             if path_fig:
                 response = {
                     'status': True,
-                    'message': f'Scatter plot from {platform_code}',
+                    'message': 'Link to the figure in result[0]',
                     'result': [f'{fig_url}/{fig_name}.html']}
                 status_code = 201
             else:
@@ -1440,7 +1502,7 @@ def get_scatter(platform_code, x, y, color=None, marginal_x=None,
     else:
         response = {
             'status': True,
-            'message': f'Scatter plot from {platform_code}',
+            'message': 'Link to the figure in result[0]',
             'result': [f'{fig_url}/{fig_name}.html']}
         status_code = 201
 
