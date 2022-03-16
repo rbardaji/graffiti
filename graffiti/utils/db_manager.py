@@ -435,6 +435,7 @@ def get_df(platform_code_list, parameter_list, rule, depth_min=None,
                     df = df_part.copy()
                 else:
                     df = pd.concat([df, df_part])
+    df = df.sort_values(by='time')
     return df
 
 

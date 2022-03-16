@@ -54,7 +54,7 @@ advanced_parser.add_argument('trendline', type=str, help='Make a trendline',
 
 @api.route('/area/<string:platform_code>/<string:parameter>')
 @api.param('platform_code', 'Platform code (you can write multiple platforms separated by ,)')
-@api.param('parameter', 'Parameter acronym')
+@api.param('parameter', 'Parameter acronym (you can write multiple platforms separated by ,)pyth')
 @api.response(401, 'Invalid token')
 @api.response(404, 'Data not found')
 @api.response(503, 'Connection error with the DB')
@@ -76,9 +76,10 @@ class GetArea(Resource):
         template = request.args.get('template')
 
         platform_code_list = platform_code.split(',')
+        parameter_list = parameter.split(',')
 
-        return get_area(platform_code_list, parameter, depth_min, depth_max,
-                        time_min, time_max, qc, template, False)
+        return get_area(platform_code_list, parameter_list, depth_min,
+                        depth_max, time_min, time_max, qc, template, False)
 
 
 @api.route('/line/<string:platform_code>/<string:parameter>')
@@ -104,8 +105,11 @@ class GetLine(Resource):
         qc = request.args.get("qc")
         template = request.args.get('template')
 
-        return get_line(platform_code, parameter, depth_min, depth_max,
-                        time_min, time_max, qc, template, False)
+        platform_code_list = platform_code.split(',')
+        parameter_list = parameter.split(',')
+
+        return get_line(platform_code_list, parameter_list, depth_min,
+                        depth_max, time_min, time_max, qc, template, False)
 
 
 @api.route('/parameter_availability/<string:parameter>')

@@ -111,7 +111,7 @@ def get_rule(platform_code, parameter, depth_min=None, depth_max=None,
     return rule
 
 
-def thread_line(platform_code, parameter, fig_name, depth_min=None,
+def thread_line(platform_code_list, parameter_list, fig_name, depth_min=None,
                 depth_max=None, time_min=None, time_max=None, qc=None,
                 template=None, detached=False):
     """
@@ -121,9 +121,9 @@ def thread_line(platform_code, parameter, fig_name, depth_min=None,
 
     Parameters
     ----------
-        platform_code: str
+        platform_code: str or list of str
             Platform code
-        parameter: str
+        parameter: str or platform_code_list
             Parameter acronym
         fig_name: str
             Name of the figure
@@ -157,13 +157,13 @@ def thread_line(platform_code, parameter, fig_name, depth_min=None,
             Location of the figure (html file). If there is no data or a db
             connection error, it returns False
     """
-    rule = get_rule(platform_code, parameter, depth_min, depth_max, time_min,
-                    time_max, qc)  # rule is False if there is a db connection
-                                   # error
+    rule = get_rule(platform_code_list, parameter_list, depth_min, depth_max,
+                    time_min, time_max, qc)  # rule is False if there is a db connection
+                                             # error
 
     if rule:
-        df = get_df(platform_code, parameter, rule, depth_min, depth_max,
-                    time_min, time_max, qc)
+        df = get_df(platform_code_list, parameter_list, rule, depth_min,
+                    depth_max, time_min, time_max, qc)
 
 
         figure_path = f'{fig_folder}/{fig_name}.html'
@@ -171,9 +171,9 @@ def thread_line(platform_code, parameter, fig_name, depth_min=None,
         if df.empty:
             figure_path = False
         else:
-            fig = px.line(df, x='time', y='value', color='platform_code',
-                          line_group='parameter', hover_name='platform_code',
-                          line_dash='depth', line_shape="spline",
+            fig = px.line(df, x='time', y='value', color='depth',
+                          symbol='parameter',
+                          line_dash='platform_code', line_shape="spline",
                           render_mode="svg", template=template)
 
             plotly.io.write_html(fig, figure_path, config=config_fig,
@@ -187,7 +187,7 @@ def thread_line(platform_code, parameter, fig_name, depth_min=None,
     return figure_path
 
 
-def get_line(platform_code, parameter, depth_min=None, depth_max=None,
+def get_line(platform_code_list, parameter_list, depth_min=None, depth_max=None,
              time_min=None, time_max=None, qc=None, template=None,
              multithread=True):
     """
@@ -196,181 +196,9 @@ def get_line(platform_code, parameter, depth_min=None, depth_max=None,
 
     Parameters
     ----------
-        platform_code: str
-            Platform code
-        parameter: str
-            Variable to plot in the y axis.
-        depth_min: float
-            Minimum depth of the measurement.
-        depth_max: float
-            Maximum depth of the measurement.
-        time_min: str
-            Minimum date and time of the measurement. A generic ISO datetime
-            parser, where the date must include the year at a minimum, and the
-            time (separated by T), is optional.
-            Examples: yyyy-MM-dd'T'HH:mm:ss.SSSZ or yyyy-MM-dd.
-        time_max: str
-            Maximum date and time of the measurement. A generic ISO datetime
-            parser, where the date must include the year at a minimum, and the
-            time (separated by T), is optional.
-            Examples: yyyy-MM-dd'T'HH:mm:ss.SSSZ or yyyy-MM-dd.
-        qc: int
-            Quality Flag value of the measurement.
-        template: str
-            Options: 'ggplot2', 'seaborn', 'simple_white', 'plotly',
-            'plotly_white', 'plotly_dark', 'presentation', 'xgridoff',
-            'ygridoff' and 'gridon'
-        multithread: bool
-            Getting the data and making the plot takes a while.
-            This argument makes the figure with a secondary thread to avoid
-            blocking the main program.
-    
-    Returns
-    -------
-        (response, status_code): (dict, int)
-            The response is a dictionary with the keys -> status, message and
-            result.
-                The status is a bool that says if the operation was successful.
-                The message is a str with comments for the user.
-                The result contains a list with of the figure.
-            The status_code is always 201 (created) if multithread = True,
-            otherwhise status_code can be 404 if data is not found.
-    """
-    time_min_str, time_max_str =time_to_str(time_min, time_max)
-
-    # Create the filename
-    fig_name = f'line-{platform_code}-{parameter}-dmin{depth_min}' + \
-        f'-dmax{depth_max}-tmin{time_min_str}-tmax{time_max_str}-qc{qc}' + \
-        f'-template{template}'
-
-    if not os.path.exists(f'{fig_folder}/{fig_name}.html'):
-
-        create_fig_folder()
-        
-        if multithread:
-            f = threading.Thread(
-                target=thread_line,
-                args=(platform_code, parameter, fig_name, depth_min, depth_max,
-                      time_min, time_max, qc, template, True))
-            f.start()
-
-            response = {
-                'status': True,
-                'message': 'Working, please wait some minuts before ' + \
-                    'access to the link from result[0].',
-                'result': [f'{fig_url}/{fig_name}.html']}
-            status_code = 201
-
-        else:
-            path_fig = thread_line(platform_code, parameter, fig_name, depth_min, depth_max,
-                                   time_min, time_max, qc, template)
-
-            if path_fig:
-                response = {
-                    'status': True,
-                    'message': 'Link to the figure in result[0]',
-                    'result': [f'{fig_url}/{fig_name}.html']}
-                status_code = 201
-            else:
-                abort(404, 'Data not found')
-    else:
-        response = {
-            'status': True,
-            'message': 'Link to the figure in result[0]',
-            'result': [f'{fig_url}/{fig_name}.html']}
-        status_code = 201
-
-    return response, status_code
-
-
-def thread_area(platform_code_list, parameter, fig_name, depth_min=None,
-                depth_max=None, time_min=None, time_max=None, qc=None,
-                template=None, detached=False):
-    """
-    It creates an area figure, the x axis is the time and the y axis is the
-    averave of values from the input parameter of the platform_code.
-    Save the figure in the {fig_folder}/{fig_name}.html
-
-    Parameters
-    ----------
-        platform_code: str
-            Platform code
-        parameter: str
-            Parameter acronym
-        fig_name: str
-            Name of the figure
-        depth_min: float
-            Minimum depth of the measurement.
-        depth_max: float
-            Maximum depth of the measurement.
-        time_min: str
-            Minimum date and time of the measurement. A generic ISO datetime
-            parser, where the date must include the year at a minimum, and the
-            time (separated by T), is optional.
-            Examples: yyyy-MM-dd'T'HH:mm:ss.SSSZ or yyyy-MM-dd.
-        time_max: str
-            Maximum date and time of the measurement. A generic ISO datetime
-            parser, where the date must include the year at a minimum, and the
-            time (separated by T), is optional.
-            Examples: yyyy-MM-dd'T'HH:mm:ss.SSSZ or yyyy-MM-dd.
-        qc: int
-            Quality Control value of the measurement.
-        template: str
-            Options: 'ggplot2', 'seaborn', 'simple_white', 'plotly',
-            'plotly_white', 'plotly_dark', 'presentation', 'xgridoff',
-            'ygridoff' and 'gridon'
-        detached: bool
-            If detached is True, the function makes an html with the message
-            'no data found'.
-    
-    Returns
-    -------
-        figure_path: str - bool
-            Location of the figure (html file). If there is no data or a db
-            connection error, it returns False
-    """
-    rule = get_rule(platform_code_list, parameter, depth_min, depth_max,
-                    time_min, time_max, qc)  # rule is False if there is a db connection
-                                             # error
-
-    if rule:
-        df = get_df(platform_code_list, parameter, rule, depth_min, depth_max,
-                    time_min, time_max, qc)
-
-        print(df.head())
-        figure_path = f'{fig_folder}/{fig_name}.html'
-
-        if df.empty:
-            figure_path = False
-        else:
-            fig = px.area(df, x='time', y='value', color='depth',
-                          line_group='platform_code', template=template,
-                          line_shape='spline', symbol='parameter')
-
-            plotly.io.write_html(fig, figure_path, config=config_fig, 
-                                 include_plotlyjs='cdn')
-    else:
-        figure_path = False
-
-    if figure_path == False and detached == True:
-        with open(f'{fig_folder}/{fig_name}.html', 'w') as fp:
-            fp.write('No data found')
-
-    return figure_path
-
-
-def get_area(platform_code_list, parameter, depth_min=None, depth_max=None,
-             time_min=None, time_max=None, qc=None, template=None,
-             multithread=True):
-    """
-    Make an area figure using Plotly. The trace contains averages
-    values of the input parameter. 
-
-    Parameters
-    ----------
         platform_code_list: str or list of str
             Platform code
-        parameter: str
+        parameter_list: str or list of str
             Variable to plot in the y axis.
         depth_min: float
             Minimum depth of the measurement.
@@ -410,10 +238,191 @@ def get_area(platform_code_list, parameter, depth_min=None, depth_max=None,
     """
     if isinstance(platform_code_list, str):
         platform_code_list = [platform_code_list]
+    if isinstance(parameter_list, str):
+        parameter_list = [parameter_list]
+
+    time_min_str, time_max_str =time_to_str(time_min, time_max)
+
+    # Create the filename
+    fig_name = f'line-{(",").join(platform_code_list)}' + \
+        f'-{(",").join(parameter_list)}-dmin{depth_min}' + \
+        f'-dmax{depth_max}-tmin{time_min_str}-tmax{time_max_str}-qc{qc}' + \
+        f'-template{template}'
+
+    if not os.path.exists(f'{fig_folder}/{fig_name}.html'):
+
+        create_fig_folder()
+        
+        if multithread:
+            f = threading.Thread(
+                target=thread_line,
+                args=(platform_code_list, parameter_list, fig_name, depth_min,
+                      depth_max, time_min, time_max, qc, template, True))
+            f.start()
+
+            response = {
+                'status': True,
+                'message': 'Working, please wait some minuts before ' + \
+                    'access to the link from result[0].',
+                'result': [f'{fig_url}/{fig_name}.html']}
+            status_code = 201
+
+        else:
+            path_fig = thread_line(platform_code_list, parameter_list, fig_name,
+                                   depth_min, depth_max, time_min, time_max, qc,
+                                   template)
+
+            if path_fig:
+                response = {
+                    'status': True,
+                    'message': 'Link to the figure in result[0]',
+                    'result': [f'{fig_url}/{fig_name}.html']}
+                status_code = 201
+            else:
+                abort(404, 'Data not found')
+    else:
+        response = {
+            'status': True,
+            'message': 'Link to the figure in result[0]',
+            'result': [f'{fig_url}/{fig_name}.html']}
+        status_code = 201
+
+    return response, status_code
+
+
+def thread_area(platform_code_list, parameter_list, fig_name, depth_min=None,
+                depth_max=None, time_min=None, time_max=None, qc=None,
+                template=None, detached=False):
+    """
+    It creates an area figure, the x axis is the time and the y axis is the
+    averave of values from the input parameter of the platform_code.
+    Save the figure in the {fig_folder}/{fig_name}.html
+
+    Parameters
+    ----------
+        platform_code_list: str or list of str
+            Platform code
+        parameter_list: str or list of str
+            Parameter acronym
+        fig_name: str
+            Name of the figure
+        depth_min: float
+            Minimum depth of the measurement.
+        depth_max: float
+            Maximum depth of the measurement.
+        time_min: str
+            Minimum date and time of the measurement. A generic ISO datetime
+            parser, where the date must include the year at a minimum, and the
+            time (separated by T), is optional.
+            Examples: yyyy-MM-dd'T'HH:mm:ss.SSSZ or yyyy-MM-dd.
+        time_max: str
+            Maximum date and time of the measurement. A generic ISO datetime
+            parser, where the date must include the year at a minimum, and the
+            time (separated by T), is optional.
+            Examples: yyyy-MM-dd'T'HH:mm:ss.SSSZ or yyyy-MM-dd.
+        qc: int
+            Quality Control value of the measurement.
+        template: str
+            Options: 'ggplot2', 'seaborn', 'simple_white', 'plotly',
+            'plotly_white', 'plotly_dark', 'presentation', 'xgridoff',
+            'ygridoff' and 'gridon'
+        detached: bool
+            If detached is True, the function makes an html with the message
+            'no data found'.
+    
+    Returns
+    -------
+        figure_path: str - bool
+            Location of the figure (html file). If there is no data or a db
+            connection error, it returns False
+    """
+    rule = get_rule(platform_code_list, parameter_list, depth_min, depth_max,
+                    time_min, time_max, qc)  # rule is False if there is a db connection
+                                             # error
+
+    if rule:
+        df = get_df(platform_code_list, parameter_list, rule, depth_min,
+                    depth_max, time_min, time_max, qc)
+
+        figure_path = f'{fig_folder}/{fig_name}.html'
+
+        if df.empty:
+            figure_path = False
+        else:
+            fig = px.area(df, x='time', y='value', color='depth',
+                          line_group='platform_code', template=template,
+                          line_shape='spline', symbol='parameter')
+
+            plotly.io.write_html(fig, figure_path, config=config_fig, 
+                                 include_plotlyjs='cdn')
+    else:
+        figure_path = False
+
+    if figure_path == False and detached == True:
+        with open(f'{fig_folder}/{fig_name}.html', 'w') as fp:
+            fp.write('No data found')
+
+    return figure_path
+
+
+def get_area(platform_code_list, parameter_list, depth_min=None, depth_max=None,
+             time_min=None, time_max=None, qc=None, template=None,
+             multithread=True):
+    """
+    Make an area figure using Plotly. The trace contains averages
+    values of the input parameter. 
+
+    Parameters
+    ----------
+        platform_code_list: str or list of str
+            Platform code
+        parameter_list: str or list of str
+            Variable to plot in the y axis.
+        depth_min: float
+            Minimum depth of the measurement.
+        depth_max: float
+            Maximum depth of the measurement.
+        time_min: str
+            Minimum date and time of the measurement. A generic ISO datetime
+            parser, where the date must include the year at a minimum, and the
+            time (separated by T), is optional.
+            Examples: yyyy-MM-dd'T'HH:mm:ss.SSSZ or yyyy-MM-dd.
+        time_max: str
+            Maximum date and time of the measurement. A generic ISO datetime
+            parser, where the date must include the year at a minimum, and the
+            time (separated by T), is optional.
+            Examples: yyyy-MM-dd'T'HH:mm:ss.SSSZ or yyyy-MM-dd.
+        qc: int
+            Quality Flag value of the measurement.
+        template: str
+            Options: 'ggplot2', 'seaborn', 'simple_white', 'plotly',
+            'plotly_white', 'plotly_dark', 'presentation', 'xgridoff',
+            'ygridoff' and 'gridon'
+        multithread: bool
+            Getting the data and making the plot takes a while.
+            This argument makes the figure with a secondary thread to avoid
+            blocking the main program.
+    
+    Returns
+    -------
+        (response, status_code): (dict, int)
+            The response is a dictionary with the keys -> status, message and
+            result.
+                The status is a bool that says if the operation was successful.
+                The message is a str with comments for the user.
+                The result contains a list with of the figure.
+            The status_code is always 201 (created) if multithread = True,
+            otherwhise status_code can be 404 if data is not found.
+    """
+    if isinstance(platform_code_list, str):
+        platform_code_list = [platform_code_list]
+    if isinstance(parameter_list, str):
+        parameter_list = [parameter_list]
 
     time_min_str, time_max_str =time_to_str(time_min, time_max)
     # Create the filename
-    fig_name = f'area-{(",").join(platform_code_list)}-{parameter}' + \
+    fig_name = f'area-{(",").join(platform_code_list)}' + \
+        f'-{(",").join(parameter_list)}' + \
         f'-dmin{depth_min}-dmax{depth_max}-tmin{time_min_str}' + \
         f'-tmax{time_max_str}-qc{qc}-template{template}'
 
@@ -424,7 +433,7 @@ def get_area(platform_code_list, parameter, depth_min=None, depth_max=None,
         if multithread:
             f = threading.Thread(
                 target=thread_area,
-                args=(platform_code_list, parameter, fig_name, depth_min,
+                args=(platform_code_list, parameter_list, fig_name, depth_min,
                       depth_max, time_min, time_max, qc, template, True))
             f.start()
 
@@ -435,7 +444,7 @@ def get_area(platform_code_list, parameter, depth_min=None, depth_max=None,
                 'result': [f'{fig_url}/{fig_name}.html']}
             status_code = 201
         else:
-            path_fig = thread_area(platform_code_list, parameter, fig_name,
+            path_fig = thread_area(platform_code_list, parameter_list, fig_name,
                                    depth_min, depth_max, time_min, time_max, qc,
                                    template)
 

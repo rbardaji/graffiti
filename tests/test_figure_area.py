@@ -27,6 +27,42 @@ class ResourceTest(unittest.TestCase):
             self.app.post(query, json=payload,
                         headers={'Authorization': test_token})
 
+        for i in range(3):
+            payload = {
+                'platform_code': 'test_platform2',
+                'parameter': 'test_parameter',
+                'depth': 10,
+                'depth_qc': 1,
+                'time': f'3000-03-09T21:4{i}:00Z',
+                "time_qc": 1,
+                "lat": 20,
+                "lat_qc": 1,
+                "lon": 20,
+                "lon_qc": 1,
+                "value": i,
+                "qc": 1
+            }
+            self.app.post(query, json=payload,
+                        headers={'Authorization': test_token})
+
+        for i in range(3):
+            payload = {
+                'platform_code': 'test_platform2',
+                'parameter': 'test_parameter2',
+                'depth': 10,
+                'depth_qc': 1,
+                'time': f'3000-03-09T21:4{i}:00Z',
+                "time_qc": 1,
+                "lat": 20,
+                "lat_qc": 1,
+                "lon": 20,
+                "lon_qc": 1,
+                "value": i,
+                "qc": 1
+            }
+            self.app.post(query, json=payload,
+                        headers={'Authorization': test_token})
+
     def test_get_area_201(self):
         """
         GET figure/area/test_platform/test_parameter should return a
@@ -35,6 +71,33 @@ class ResourceTest(unittest.TestCase):
         query = 'figure/area/test_platform/test_parameter'
         response = self.app.get(query, headers={'Authorization': test_token})
         self.assertEqual(201, response.status_code)
+    
+    def test_get_area_201_multiplatform(self):
+        """
+        GET figure/area/test_platform,test_platform2/test_parameter should return a
+        status_code = 201
+        """
+        query = 'figure/area/test_platform,test_platform2/test_parameter'
+        response = self.app.get(query, headers={'Authorization': test_token})
+        self.assertEqual(201, response.status_code)
+
+    def test_get_area_201_multiplatform_with_parameter_for_one(self):
+        """
+        GET figure/area/test_platform,test_platform2/test_parameter2 should
+        return a status_code = 201
+        """
+        query = 'figure/area/test_platform,test_platform2/test_parameter2'
+        response = self.app.get(query, headers={'Authorization': test_token})
+        self.assertEqual(201, response.status_code)
+
+    def test_get_area_404_multiplatform_bad_parameter(self):
+        """
+        GET figure/area/test_platform,test_platform2/bad_parameter should
+        return a status_code = 404
+        """
+        query = 'figure/area/test_platform,test_platform2/bad_parameter'
+        response = self.app.get(query, headers={'Authorization': test_token})
+        self.assertEqual(404, response.status_code)
     
     def test_get_area_404_bad_parameter(self):
         """
@@ -235,5 +298,13 @@ class ResourceTest(unittest.TestCase):
         """
         for i in range(3):
             query = '/admin_data/R/test_platform_test_parameter_10_' + \
+                f'3000-03-09T21:4{i}:00Z'
+            self.app.delete(query, headers={'Authorization': test_token})
+        for i in range(3):
+            query = '/admin_data/R/test_platform2_test_parameter_10_' + \
+                f'3000-03-09T21:4{i}:00Z'
+            self.app.delete(query, headers={'Authorization': test_token})
+        for i in range(3):
+            query = '/admin_data/R/test_platform2_test_parameter2_10_' + \
                 f'3000-03-09T21:4{i}:00Z'
             self.app.delete(query, headers={'Authorization': test_token})
