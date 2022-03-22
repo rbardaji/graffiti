@@ -111,7 +111,7 @@ def get_token(user: str, password: str):
                 'result': List that contains the token in possition 0.
             The status_code is 201.
         The function also can abort the flask app with a code.
-        404 - Invalid email or password or
+        404 - Invalid email or password
         503 - Impossible to connect with the AAI
     """
     try:
@@ -129,7 +129,7 @@ def get_token(user: str, password: str):
     except exceptions.KeycloakConnectionError:
         abort(503, 'Impossible to connect with the AAI')
     except exceptions.KeycloakAuthenticationError:
-        abort(401, 'Invalid email or password')
+        abort(404, 'Invalid email or password')
 
     return response, status_code
 
@@ -167,8 +167,6 @@ class Auth:
                 return response_object, 201
 
             except Exception as e:
-                print('Error:')
-                print(e)
                 
                 response_object = {
                     'status': False,

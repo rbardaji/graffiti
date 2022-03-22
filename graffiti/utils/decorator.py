@@ -106,8 +106,6 @@ def admin_token_required(f):
 
         if not token:
             abort(401, "Admin Token is missing.")
-        elif token == data_portal_token:
-            status_code = 200
         elif token == test_token:
             status_code = 200
         else:

@@ -83,5 +83,4 @@ class GetData(Resource):
         return {
             'status': True,
             'message': f'Data from {platform_code}, parameter {parameter}',
-            'result': df_dict
-        }
+            'result': [df_dict]}

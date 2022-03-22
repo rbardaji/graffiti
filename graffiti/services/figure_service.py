@@ -1362,10 +1362,6 @@ def thread_scatter(platform_code_x, parameter_x, platform_code_y, parameter_y,
             df = df_x.join(df_y, how='left',
                            lsuffix=f'_{parameter_x}', rsuffix=f'_{parameter_y}')
             df.reset_index(inplace=True)
-            print('XX')
-            print(df[f'{platform_code_x}-{parameter_x}'].head())
-            print('YY')
-            print(df[f'{platform_code_y}-{parameter_y}'].head())
 
             fig = px.scatter(df, x=f'{platform_code_x}-{parameter_x}',
                              y=f'{platform_code_y}-{parameter_y}', color=color,

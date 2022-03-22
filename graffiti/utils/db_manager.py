@@ -346,7 +346,6 @@ def get_df(platform_code_list, parameter_list, rule, depth_min=None,
     -------
         df: pandas DataFrame
     """
-    print('Getting df')
     if isinstance(platform_code_list, str):
         platform_code_list = [platform_code_list]
     if isinstance(parameter_list, str):
@@ -358,10 +357,7 @@ def get_df(platform_code_list, parameter_list, rule, depth_min=None,
 
     for platform_code in platform_code_list:
 
-        print(platform_code)
         for parameter in parameter_list:
-
-            print('-', parameter)
 
             df_name = f'{platform_code}_{parameter}_{rule}_dmin{depth_min}' + \
                 f'_dmax{depth_max}_tmin{time_min_str}_tmax{time_max_str}_qc{qc}'
@@ -789,7 +785,7 @@ def get_metadata_id(platform_code: str):
                 The result is a list with a dict. The key of the dict is the
                 data_id and the value is the content of the data_id fro the
                 database.
-            The status_code is 200 - found, 204 - not found or 503 -
+            The status_code is 200 - found, 404 - not found or 503 -
             connection error
     """
     elastic = Elasticsearch(elastic_host)
@@ -804,7 +800,7 @@ def get_metadata_id(platform_code: str):
             }
             status_code = 200
         else:
-            abort(204, 'platform_code not found.')
+            abort(404, 'platform_code not found.')
     except exceptions.NotFoundError:
             abort(204, 'platform_code not found.')
     except exceptions.ConnectionError:

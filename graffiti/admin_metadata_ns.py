@@ -3,7 +3,7 @@ from flask_restx import Namespace, Resource, fields
 from .utils.decorator import save_request, admin_token_required
 from .utils.db_manager import post_metadata, put_metadata, delete_metadata
 
-api = Namespace('admin_metadata', description='Metadata operations')
+api = Namespace('admin_metadata', description='POST, PUT and DELETE metadata')
 
 
 metadata_payload = api.model('metadata', {

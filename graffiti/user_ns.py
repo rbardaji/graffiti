@@ -1,8 +1,8 @@
 from flask_restx import Namespace, Resource, fields
-from flask import request, abort
+from flask import request
 
 from .utils.db_manager import get_query_id, get_query
-from .utils.auth_manager import Auth, get_token, get_token_info
+from .utils.auth_manager import get_token, get_token_info
 from .utils.decorator import token_required
 
 api = Namespace('user',
@@ -22,7 +22,7 @@ query_parse.add_argument('namespace')
 
 
 @api.route('/token/<string:user>/<string:password>')
-@api.response(401, 'Invalid email or password.')
+@api.response(404, 'Invalid email or password.')
 @api.response(503, 'Connection error with the AAI.')
 class GetToken(Resource):
     """ Authorization operations"""
