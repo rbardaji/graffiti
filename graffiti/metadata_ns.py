@@ -1,3 +1,5 @@
+from email.policy import default
+from secrets import choice
 from flask_restx import Namespace, Resource, reqparse
 from flask import request
 
@@ -22,6 +24,11 @@ metadata_parser.add_argument('qc', type=int,
                              choices=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
 metadata_parser.add_argument('platform_code', type=str, help='Platform code')
 metadata_parser.add_argument('parameter', type=str, help='Parameter acronym')
+
+
+format_parser = reqparse.RequestParser()
+format_parser.add_argument('format', help='Output format',
+                           choices=['json', 'csv'], default='json')
 
 
 @api.route('')
@@ -57,6 +64,7 @@ class GetMetadata(Resource):
 @api.response(503, 'Connection error with the DB.')
 class GetMetadataId(Resource):
     @api.doc(security='apikey')
+    @api.expect(format_parser)
     @api.marshal_with(user_response, code=200, skip_none=True)
     @token_required
     @save_request
@@ -64,5 +72,5 @@ class GetMetadataId(Resource):
         """
         Get the metadata from the input {platform_code}
         """
-
-        return get_metadata_id(platform_code)
+        format = request.args.get('format', 'json')
+        return get_metadata_id(platform_code=platform_code, format=format)

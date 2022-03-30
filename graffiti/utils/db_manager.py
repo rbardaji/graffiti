@@ -18,7 +18,7 @@ from config import (elastic_host, data_index_r, data_index_h, data_index_2h,
                     data_index_5d, data_index_6d, data_index_10d, api_index,
                     data_index_15d, data_index_m, max_plot_points, df_folder,
                     metadata_index, vocabulary_index, fig_folder, files_folder,
-                    files_url)
+                    files_url, csv_folder, csv_url)
 
 
 def data_ingestion(index_name, data):
@@ -773,7 +773,7 @@ def get_data_count(rule, platform_code=None, parameter=None, depth_min=None,
     return response, status_code
 
 
-def get_metadata_id(platform_code: str):
+def get_metadata_id(platform_code: str, format: str='json'):
     """
     Get the metadata values from the input platform_code (the ID).
 
@@ -788,9 +788,7 @@ def get_metadata_id(platform_code: str):
             The response is a dict with keys: status, message and result.
                 The status is a bool that indicates that data is found.
                 The message is a str with comments for the user.
-                The result is a list with a dict. The key of the dict is the
-                data_id and the value is the content of the data_id fro the
-                database.
+                The result is a list with a dict or a list with a url.
             The status_code is 200 - found, 404 - not found or 503 -
             connection error
     """
@@ -799,11 +797,35 @@ def get_metadata_id(platform_code: str):
     try:
         el_response = elastic.get(index=metadata_index, id=platform_code)
         if el_response.get('found'):
-            response = {
-                'status': True,
-                'message': 'Metadata information',
-                'result': [{platform_code: el_response['_source']}]
-            }
+            if format == 'json':
+                response = {
+                    'status': True,
+                    'message': 'Metadata information',
+                    'result': [{platform_code: el_response['_source']}]
+                }
+            else:
+                filename = f'{csv_folder}/{platform_code}.csv'
+                # Check if folder exist
+                if not os.path.exists(csv_folder):
+                    os.makedirs(csv_folder)
+
+                if not os.path.exists(filename):
+                    metadata_dict = el_response['_source']
+                    if 'parameters' in metadata_dict:
+                        metadata_dict['parameters'] = \
+                            (' - ').join(metadata_dict['parameters'])
+                    # Convert a dict to a csv
+                    print(metadata_dict)
+                    print(metadata_dict['parameters'])
+                    df = pd.DataFrame.from_dict([metadata_dict])
+                    print(df)
+                    df.to_csv(filename, index = False, header=True)
+
+                response = {
+                    'status': True,
+                    'message': 'Metadata information',
+                    'result': [f'{csv_url}/{platform_code}.csv']
+                }
             status_code = 200
         else:
             abort(404, 'platform_code not found.')
