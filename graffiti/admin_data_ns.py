@@ -1,5 +1,4 @@
-from flask_restx import Namespace, Resource, reqparse, fields
-from flask import request
+from flask_restx import Namespace, Resource, fields
 
 from .utils.decorator import save_request, admin_token_required
 from .utils.db_manager import post_data, delete_data

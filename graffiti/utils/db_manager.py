@@ -241,8 +241,14 @@ def get_data(search_string=None, rule=None):
         }
         status_code = 200
     else:
-        elastic.close()
-        abort(404, 'Data not found')
+        # elastic.close()
+        # abort(404, 'Data not found')
+        response = {
+            'status': False,
+            'message': 'Data not found',
+            'result': []
+        }
+        status_code = 404
 
     elastic.close()
 
@@ -933,7 +939,7 @@ def delete_data(rule: str, data_id: str):
 
 def post_metadata(platform_code: str, metadata: dict):
     """
-    Add the metadata dictionary to the Elasticsearch. The ID of the document is
+    Add the metadata dictionary to the DB. The ID of the document is
     the platform code.
 
     Parameters
@@ -941,7 +947,7 @@ def post_metadata(platform_code: str, metadata: dict):
         platform_code: str
             Platform code. ID of the document (metadata) to add.
         metadata: dict
-            Document to add to elasticsearch.
+            Document to add to the DB.
     
     Returns
     -------
@@ -1056,7 +1062,7 @@ def put_metadata(platform_code, metadata):
 
 def delete_metadata(platform_code: str):
     """
-    Delete a metadata document from elasticsearch.
+    Delete a metadata document from the DB.
     The input platform_code is the ID of the document.
 
     Parameters

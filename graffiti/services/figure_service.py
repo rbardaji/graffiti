@@ -160,11 +160,9 @@ def thread_line(platform_code_list, parameter_list, fig_name, depth_min=None,
     rule = get_rule(platform_code_list, parameter_list, depth_min, depth_max,
                     time_min, time_max, qc)  # rule is False if there is a db connection
                                              # error
-
     if rule:
         df = get_df(platform_code_list, parameter_list, rule, depth_min,
                     depth_max, time_min, time_max, qc)
-
 
         figure_path = f'{fig_folder}/{fig_name}.html'
 
