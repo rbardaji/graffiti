@@ -814,11 +814,9 @@ def get_metadata_id(platform_code: str, format: str='json'):
                     if 'parameters' in metadata_dict:
                         metadata_dict['parameters'] = \
                             (' - ').join(metadata_dict['parameters'])
+
                     # Convert a dict to a csv
-                    print(metadata_dict)
-                    print(metadata_dict['parameters'])
                     df = pd.DataFrame.from_dict([metadata_dict])
-                    print(df)
                     df.to_csv(filename, index = False, header=True)
 
                 response = {
@@ -1797,3 +1795,149 @@ def get_query(user_id: str, namespace: str=None):
 
     elastic.close()
     return response, status_code
+
+
+def post_vocabulary(platform_code: str, vocabulary: dict):
+    """
+    Add the vocabulary dictionary to the DB. The ID of the document is
+    the platform code.
+
+    Parameters
+    ----------
+        platform_code: str
+            Platform code. ID of the document (metadata) to add.
+        vocabulary: dict
+            Document to add to the DB.
+    
+    Returns
+    -------
+        (response, status_code): (dict, int)
+            response is a dictionary with the following keys:
+                'status': True,
+                'message': 'Added',
+                'result': It is a list with a dict. The key of the dict is the
+                    input platform_code and the value is the input vocabulary
+            status_code is always 201, (Added)
+    """
+    elastic = Elasticsearch(elastic_host)
+
+    elastic.index(index=vocabulary_index, id=platform_code, document=vocabulary)
+
+    response = {
+        'status': True,
+        'message': 'Added',
+        'result': [{platform_code: vocabulary}]
+    }
+    status_code = 201
+
+    elastic.close()
+    return response, status_code
+
+
+def put_vocabulary(platform_code, vocabulary):
+    """
+    Update a vocabulary document.
+
+    Parameters
+    ----------
+        platform_code: str
+            Platform code. ID of the document (vocabulary) to add.
+        vocabulary: dict
+            Document to add to elasticsearch.
+
+    Returns
+    -------
+        (response, status_code): (dict, int)
+            response is a dictionary with the following keys:
+                'status': True,
+                'message': 'Added',
+                'result': It is a list with a dict. The key of the dict is the
+                    input platform_code and the value is the updated vocabulary
+            status_code is:
+                201 - Updated
+                204 - Vocabulary not found
+                406 - Bad payload (input vocabulary)
+                503 - Connection error with the DB
+    """
+
+
+    upload_vocabulary = {'doc': vocabulary}
+
+    elastic = Elasticsearch(elastic_host)
+    try:
+        response = elastic.update(
+            index=vocabulary_index, id=platform_code, body=upload_vocabulary)
+        if response['result'] == 'updated':
+            response = elastic.get(index=vocabulary_index, id=platform_code)
+            response = {
+                'status': True,
+                'message': 'Updated',
+                'result': [{platform_code: response['_source']}]
+            }
+            status_code = 201
+
+        elif response['result'] == 'noop':
+            # Comprobar esto
+            response = elastic.get(index=vocabulary_index, id=platform_code)
+            response = {
+                'status': False,
+                'message': 'Metadata not updated',
+                'result': [{platform_code: response['_source']}]
+            }
+            status_code = 204
+    except exceptions.NotFoundError:
+        response = {
+            'status': False,
+            'message': 'Platform code not found',
+            'result': []
+        }
+        status_code = 204
+    except exceptions.RequestError:
+        response =  {
+            'status': False,
+            'message': 'Not Acceptable. Bad metadata payload',
+            'result': []
+        }
+        status_code = 406
+    except exceptions.ConnectionError:
+        response =   {
+            'status': False,
+            'message': 'Internal error. Unable to connect to the DB',
+            'result': []
+        }
+        status_code = 503
+
+    elastic.close()
+    return response, status_code
+
+
+def delete_vocabulary(platform_code: str):
+    """
+    Delete a vocabulary document from the DB.
+    The input platform_code is the ID of the document.
+
+    Parameters
+    ----------
+        platform_code: str
+            Platform code. ID of the document (vocabulary) to add.
+
+    Returns
+    -------
+        status_code: int
+            202 - Deleted,
+            404 - Vocabulary not found,
+            503 - Connection error with the DB
+    """
+    elastic = Elasticsearch(elastic_host)
+
+    try:
+        response = elastic.delete(index=vocabulary_index, id=platform_code)
+        if response['result'] == 'deleted':
+            status_code = 202
+    except exceptions.NotFoundError:
+        status_code = 404
+    except exceptions.ConnectionError:
+        status_code = 503
+
+    elastic.close()
+    return status_code

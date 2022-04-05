@@ -57,7 +57,7 @@ advanced_parser.add_argument('trendline', type=str, help='Make a trendline',
 
 @api.route('/area/<string:platform_code>/<string:parameter>')
 @api.param('platform_code', 'Platform code (you can write multiple platforms separated by ,)')
-@api.param('parameter', 'Parameter acronym (you can write multiple platforms separated by ,)')
+@api.param('parameter', 'Parameter acronym (you can write multiple parameters separated by ,)')
 @api.response(401, 'Invalid token')
 @api.response(404, 'Data not found')
 @api.response(503, 'Connection error with the DB')
