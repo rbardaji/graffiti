@@ -1331,12 +1331,16 @@ def thread_scatter(platform_code_x, parameter_x, platform_code_y, parameter_y,
                    marginal_y=None, trendline=None, template=None,
                    depth_min=None, depth_max=None, time_min=None, time_max=None,
                    qc=None, detached=False):
-
+    
     platform_code_list = [platform_code_x, platform_code_y]
-    parameter_list = [parameter_x, parameter_y, color]
+    if parameter_y != 'depth':
+        
+        parameter_list = [parameter_x, parameter_y, color]
+    else:
+        parameter_list = [parameter_x, color]
     rule = get_rule(platform_code_list, parameter_list, depth_min, depth_max,
                     time_min, time_max, qc)  # rule is False if there is a db
-                                             # connection error
+                                            # connection error
 
     if rule:
 
@@ -1349,12 +1353,13 @@ def thread_scatter(platform_code_x, parameter_x, platform_code_y, parameter_y,
         df_x.rename(columns={'value': f'{platform_code_x}-{parameter_x}'},
                     inplace=True)
 
-        # # Get y
-        df_y = get_df(platform_code_y, parameter_y, rule, depth_min, depth_max,
-                      time_min, time_max, qc)
-        df_y.set_index(['depth', 'time'], inplace=True)
-        df_y.rename(columns={'value': f'{platform_code_y}-{parameter_y}'},
-                    inplace=True)
+        if parameter_y != 'depth':
+            # Get y
+            df_y = get_df(platform_code_y, parameter_y, rule, depth_min,
+                          depth_max, time_min, time_max, qc)
+            df_y.set_index(['depth', 'time'], inplace=True)
+            df_y.rename(columns={'value': f'{platform_code_y}-{parameter_y}'},
+                        inplace=True)
 
         if parameter_x == parameter_y:
             df = df_x.join(df_y, how='left',
@@ -1367,14 +1372,56 @@ def thread_scatter(platform_code_x, parameter_x, platform_code_y, parameter_y,
                              marginal_y=marginal_y, trendline=trendline,
                              template=template)
         else:
-            df = df_x.join(df_y, how='left',
-                           lsuffix=f'_{parameter_x}', rsuffix=f'_{parameter_y}')
-            df.reset_index(inplace=True)
-            fig = px.scatter(df, x=f'{platform_code_x}-{parameter_x}',
-                             y=f'{platform_code_y}-{parameter_y}', color=color,
-                             marginal_x=marginal_x,
-                             marginal_y=marginal_y, trendline=trendline,
-                             template=template)
+            if parameter_y != 'depth':
+                df = df_x.join(df_y, how='left',
+                               lsuffix=f'_{parameter_x}',
+                               rsuffix=f'_{parameter_y}')
+                df.reset_index(inplace=True)
+                fig = px.scatter(df, x=f'{platform_code_x}-{parameter_x}',
+                                 y=f'{platform_code_y}-{parameter_y}',
+                                 color=color, marginal_x=marginal_x,
+                                 marginal_y=marginal_y, trendline=trendline,
+                                 template=template)
+            else:
+                # Chage defauld color
+                if color == 'depth':
+                    color = None
+
+                # Make the df
+                df = df_x
+                df.reset_index(inplace=True)
+                del df['time']
+                del df['platform_code']
+                del df['parameter']
+                df = df.apply(pd.to_numeric)
+                df[f'{platform_code_x}-{parameter_x}'] = df[f'{platform_code_x}-{parameter_x}'].astype("float")
+                df.sort_values('depth', inplace=True)
+
+                depth = 0.25
+                max_depth = 30
+                inc_depth = depth
+
+                df_depth = pd.DataFrame()
+                df_25 = df[df['depth'] <= depth]
+                df_depth = df_25.mean().to_frame().T
+
+                while depth <= max_depth:
+                    upper_depth = depth + inc_depth
+                    df_split = df[df['depth'] <= upper_depth]
+                    df_split = df_split[df_split['depth'] > depth]
+                    depth += inc_depth
+                    if df_split.empty:
+                        continue
+                    df_depth = pd.concat(
+                        [df_depth, df_split.mean().to_frame().T], axis=0)
+
+                fig = px.scatter(df_depth, x=f'{platform_code_x}-{parameter_x}',
+                                 y=f'{parameter_y}',
+                                 color=color, marginal_x=marginal_x,
+                                 marginal_y=marginal_y, trendline=trendline,
+                                 template=template)
+
+                fig['layout']['yaxis']['autorange'] = 'reversed'
 
         plotly.io.write_html(fig, f'{fig_folder}/{fig_name}.html',
                              config=config_fig, include_plotlyjs='cdn')

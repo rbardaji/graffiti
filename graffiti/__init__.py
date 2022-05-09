@@ -10,7 +10,7 @@ from .metadata_ns import api as metadata_api
 from .admin_data_ns import api as admin_data_api
 from .email_ns import api as email_api
 from .doi_ns import api as doi_api
-from .hash_ns import api as hash_api
+from .pid_ns import api as pid_api
 from .user_ns import api as user_api
 from .admin_doi_ns import api as admin_doi_api
 
@@ -40,7 +40,7 @@ api.add_namespace(figure_api)
 api.add_namespace(admin_data_api)
 api.add_namespace(admin_metadata_api)
 api.add_namespace(admin_vocabulary_api)
+api.add_namespace(admin_figure_api)
+api.add_namespace(pid_api)
 api.add_namespace(doi_api)
 api.add_namespace(admin_doi_api)
-api.add_namespace(admin_figure_api)
-api.add_namespace(hash_api)

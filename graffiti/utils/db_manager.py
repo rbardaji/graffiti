@@ -1,6 +1,7 @@
 import os
 import glob
 import pandas as pd
+import hashlib as hash
 import json
 import requests
 import datetime
@@ -1678,6 +1679,7 @@ def add_values_v2(payload, mail, DOI=False):
         f.write(tree)
 
     url_pid = files_url +  '/' + str(year) + '/' + PID + '.html'
+
     # Guarda el filename en el elastic
     elastic = Elasticsearch(elastic_host)
     body = {
@@ -1941,3 +1943,399 @@ def delete_vocabulary(platform_code: str):
 
     elastic.close()
     return status_code
+
+
+def post_pid(payload, mail, DOI=False):
+    """
+    Add a PID to the DB.
+
+    Parameters
+    ----------
+        payload: dict
+            Payload to add to the DB.
+        mail: str
+            Mail of the user who is adding the PID.
+        DOI: bool
+            If True, the PID is a DOI.
+
+    Returns
+    -------
+        (response, status_code): (dict, int)
+            response is a dictionary with the following keys:
+                'status': True,
+                'message': 'Added',
+                'result': It is a list with a dict. The key of the dict is the
+                    input platform_code and the value is the input vocabulary
+            status_code is:
+                201 - Added
+                406 - Bad payload (input vocabulary)
+                503 - Connection error with the DB
+    """
+
+    PID = hash.md5(repr(payload).encode()).hexdigest()
+    payload = json.loads(json.dumps(payload))
+
+    # TAGS:
+    html = ET.Element('html')
+    head = ET.Element('head')
+    style = ET.Element('style')
+    body = ET.Element('body')
+    principal_div = ET.Element('div', attrib={'class': 'principal'})
+    toolbar_div = ET.Element('div', attrib={'class': 'toolbar'})
+    row1_div = ET.Element('div', attrib={'class': 'row1'})
+    row2_div = ET.Element('div', attrib={'class': 'row2'})
+    row3_div = ET.Element('div', attrib={'class': 'row3'})
+    emso_a = ET.Element('a',
+                        attrib={
+                            'target': '_blank',
+                            'href': 'http://emso.eu/',
+                            'target': '_blank',
+                            'href': 'https://data.emso.eu/home'})
+    emso_logo = ET.Element('img',
+                           attrib={
+                               'src': 'http://emso.eu/wp-content/uploads' + \
+                                   '/2018/03/logo-w-150.png'})
+    title_div = ET.Element('div', attrib={'class': 'title'})
+    title = ET.Element('h1', attrib={'style': 'padding-top: 1em;'})
+    subtitle = ET.Element('h2')
+    hr = ET.Element('hr')
+    content_div = ET.Element('div', attrib={'class': 'content'})
+    table = ET.Element('table', attrib={'class': 'styled-table'})
+    thead = ET.Element('thead')
+    thead_tr = ET.Element('tr')
+    thead_th1 = ET.Element('th',
+                           attrib={
+                               'style': 'border-right: ' + \
+                                   '2px solid rgb(255, 255, 255)'})
+    thead_th2 = ET.Element('th')
+    tbody = ET.Element('tbody')
+
+    # Append elements
+    html.append(head)
+    head.append(style)
+    html.append(body)
+    body.append(principal_div)
+    principal_div.append(toolbar_div)
+    toolbar_div.append(row1_div)
+    row1_div.append(emso_a)
+    emso_a.append(emso_logo)
+    toolbar_div.append(row2_div)
+    toolbar_div.append(row3_div)
+    principal_div.append(content_div)
+    content_div.append(title_div)
+    title_div.append(title)
+    title_div.append(subtitle)
+    content_div.append(hr)
+    content_div.append(table)
+    table.append(thead)
+    thead.append(thead_tr)
+    thead_tr.append(thead_th1)
+    thead_tr.append(thead_th2)
+    table.append(tbody)
+
+    title.text = "EMSO ERIC persistent identifier (alfa version)"
+    subtitle.text = "PID: " + PID
+    thead_th1.text = "User Claim"
+    thead_th2.text = "Value"
+
+    # Check if required keys and values exist:
+    required = ["resource", "resourceTypeGeneral", "version", "creators"]
+    optional = ["titles", "descriptions"]
+    for key in required:
+        if key not in payload:
+            raise KeyError(
+                'Required key "' + key + '" does not exist on the PID payload.')
+        else:
+            if key != 'creators' and len(payload[key]) == 0:
+                raise ValueError('Key"' + key + '" does not have a value.')
+            if key == 'creators' and not payload[key]:
+                raise ValueError('No creators added, minimum one required.')
+
+    for key, value in payload.items():
+        if key == "resource":
+            claim_tr = ET.Element('tr', attrib={'class': 'active-row'})
+            claim_td1 = ET.Element('td')
+            claim_td2 = ET.Element('td')
+
+            tbody.append(claim_tr)
+            claim_tr.append(claim_td1)
+            claim_tr.append(claim_td2)
+
+            claim_td1.text = "API Call"
+            claim_td2.text = value
+        # Si el valor es una string i està dins dels requireds
+        elif isinstance(value, str) and key in required:
+            claim_tr = ET.Element('tr', attrib={'class': 'active-row'})
+            claim_td1 = ET.Element('td')
+            claim_td2 = ET.Element('td')
+
+            tbody.append(claim_tr)
+            claim_tr.append(claim_td1)
+            claim_tr.append(claim_td2)
+
+            claim_td1.text = key
+            claim_td2.text = value
+        # Si el valor és una llista de creadors:
+        elif isinstance(value, list) and key == 'creators':
+            index = 1
+            for creator in value:
+                if isinstance(creator, dict):
+                    for i, j in creator.items():
+                        # Si es una llista amb elements:
+                        if isinstance(j, list) and len(j) >= 1:
+                            index_2 = 1
+                            for val in j:
+                                if isinstance(val, dict):
+                                    for k, l in val.items():
+                                        if (index % 2) == 0:
+                                            claim_tr = ET.Element(
+                                                'tr',
+                                                attrib={'class': 'active-row'})
+                                        else:
+                                            claim_tr = ET.Element('tr')
+                                        claim_td1 = ET.Element('td')
+                                        claim_td2 = ET.Element('td')
+
+                                        tbody.append(claim_tr)
+                                        claim_tr.append(claim_td1)
+                                        claim_tr.append(claim_td2)
+
+                                        claim_td1.text = key + ' ' + \
+                                            str(index) + ' - ' + i + ' ' + \
+                                            str(index_2) + ' - ' + str(k)
+                                        claim_td2.text = str(l)
+                                    index_2 += 1
+                        else:
+                            if (index % 2) == 0:
+                                claim_tr = ET.Element(
+                                    'tr',
+                                    attrib={'class': 'active-row'})
+                            else:
+                                claim_tr = ET.Element('tr')
+                            claim_td1 = ET.Element('td')
+                            claim_td2 = ET.Element('td')
+
+                            tbody.append(claim_tr)
+                            claim_tr.append(claim_td1)
+                            claim_tr.append(claim_td2)
+
+                            claim_td1.text = key + ' ' + str(index) + \
+                                ' - ' + str(i)
+                            claim_td2.text = str(j)
+                    index += 1
+        # Si el valor es una llista amb elements dels valors opcionals:
+        elif isinstance(value, list) and len(value) >= 1 and key in optional:
+            # Per cada element:
+            index = 1
+            for entrance in value:
+                if isinstance(entrance, dict):
+                    for i, j in entrance.items():
+                        # Si es una llista amb elements:
+                        if isinstance(j, list) and len(j) >= 1:
+                            index_2 = 1
+                            for val in j:
+                                if isinstance(val, dict):
+                                    for k, l in val.items():
+                                        if (index % 2) == 0:
+                                            claim_tr = ET.Element(
+                                                'tr',
+                                                attrib={'class': 'active-row'})
+                                        else:
+                                            claim_tr = ET.Element('tr')
+                                        claim_td1 = ET.Element('td')
+                                        claim_td2 = ET.Element('td')
+
+                                        tbody.append(claim_tr)
+                                        claim_tr.append(claim_td1)
+                                        claim_tr.append(claim_td2)
+
+                                        claim_td1.text = key + ' ' + str(index) + ' - ' + i + ' ' + str(
+                                            index_2) + ' - ' + str(k)
+                                        claim_td2.text = str(l)
+                                    index_2 += 1
+                        else:
+                            if (index % 2) == 0:
+                                claim_tr = ET.Element(
+                                    'tr',
+                                    attrib={'class': 'active-row'})
+                            else:
+                                claim_tr = ET.Element('tr')
+                            claim_td1 = ET.Element('td')
+                            claim_td2 = ET.Element('td')
+
+                            tbody.append(claim_tr)
+                            claim_tr.append(claim_td1)
+                            claim_tr.append(claim_td2)
+
+                            claim_td1.text = key + ' ' + str(index) + ' - ' + \
+                                str(i)
+                            claim_td2.text = str(j)
+                    index += 1
+
+
+    style.text = """body {
+               background-color: #f4f8f9;
+           }
+
+           .principal {
+               background-color: #f4f8f9;
+               width: 100%;
+               height: max-content;
+               top: 0;
+               left: 0;
+               overflow-x: hidden;
+               position: absolute;
+           }
+
+           .title {
+               text-align: center;
+               margin-top: 115px;
+           }
+
+           .toolbar {
+               top: 0;
+               background-color: rgb(188, 194, 194);
+               min-height: 115px;
+               max-height: 115px;
+               align-content: center;
+               display: flex;
+               position: fixed;
+               width: 100%;
+           }
+
+           .row1 {
+               padding-left: 15%;
+               margin-top: 0.5vh;
+               width: 33%;
+               min-height: fit-content;
+               text-align: left;
+
+           }
+
+           .row2 {
+               margin-top: 4vh;
+               width: 33%;
+               min-height: fit-content;
+               text-align: center;
+
+           }
+
+           .row3 {
+               padding-right: 15%;
+               width: 33%;
+               text-align: right;
+               margin-top: 4vh;
+           }
+
+           .version {
+               color: rgb(0, 0, 0);
+               font-weight: 700;
+           }
+
+           .content {
+               background-color: white;
+               width: 70%;
+               margin-left: 15%;
+           }
+
+           .doiMinting {
+               font-weight: 400;
+               font-size: 1em;
+               text-decoration: none;
+               width: max-content;
+               padding: 15px 25px;
+               text-align: center;
+               cursor: pointer;
+               outline: none;
+               color: #fff;
+               background-color: rgb(24, 128, 30, 0.8);
+               border-radius: 8px;
+           }
+
+           .doiMinting:hover {
+               background-color: rgb(24, 128, 30, 0.4)
+           }
+
+           .minting {
+               margin-top: 3em;
+               text-align: center;
+               padding-bottom: 3em;
+           }
+
+           .padding {
+               margin-top: 3em;
+           }
+
+           .styled-table {
+               border-collapse: collapse;
+               margin: 25px 10%;
+               font-size: 1em;
+               font-family: sans-serif;
+               min-width: 80%;
+               align-items: center;
+               box-shadow: 0 0 20px rgba(0, 0, 0, 0.15);
+           }
+
+           .styled-table thead tr {
+               background-color: rgb(24, 128, 30, 0.8);
+               color: #ffffff;
+               text-align: left;
+               padding: 0.5em;
+           }
+
+           td {
+               padding: 10px;
+               border-left: 1px solid rgb(24, 128, 30, 0.8);
+               border-right: 1px solid rgb(24, 128, 30, 0.8);
+           }
+
+           th {
+               padding: 15px;
+               font-size: 1em;
+               text-align: center;
+           }
+
+           .styled-table tbody tr {
+               border-bottom: 1px solid #dddddd;
+           }
+
+           .styled-table tbody tr:nth-of-type(even) {
+               background-color: #f3f3f3;
+           }
+
+           .styled-table tbody tr:last-of-type {
+               border-bottom: 2px solid rgb(24, 128, 30, 0.8);
+           }
+
+           .styled-table tbody tr.active-row {
+               font-weight: bold;
+               color: rgb(24, 128, 30, 0.8)rgb(24, 128, 30, 0.8);
+           }
+       """
+
+    tree = ET.tostring(html, encoding='unicode', method='html')
+    sha256 = hash.sha256(tree.encode('utf-8')).hexdigest()
+    year = datetime.datetime.now().year
+
+    file_path = files_folder + '/' + str(year) + '/' + sha256 + '.html'
+    os.makedirs(os.path.dirname(file_path), exist_ok=True)
+
+    filename = files_folder + '/' + str(year) + '/' + PID + '.html'
+    with open(filename, 'w+') as f:
+        f.write(tree)
+
+    url_pid = files_url +  '/' + str(year) + '/' + PID + '.html'
+
+    # Save the PID into the elasticsearch
+    elastic = Elasticsearch(elastic_host)
+    body = {
+        'email': mail,
+        'filename': url_pid
+    }
+    elastic.index('emso-pid', body=body)
+
+    return {
+        'status': True,
+        'message': 'Success',
+        'result': url_pid
+    }, 201
