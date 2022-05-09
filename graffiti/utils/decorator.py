@@ -59,6 +59,7 @@ def save_request(f):
                 'time': datetime.datetime.utcnow().strftime(
                     '%Y-%m-%d %H:%M:%S.%f')[:-3]
             }
+
         status = data_ingestion(api_index, body)
         if status == 201:
             return f(*args, **kwargs)
@@ -71,7 +72,6 @@ def save_request(f):
 def token_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
-
         token = None
 
         if 'Authorization' in request.headers:
@@ -89,7 +89,7 @@ def token_required(f):
 
         if status_code != 200:
             abort(401, "Invalid token.")
-        
+
         return f(*args, **kwargs)
     
     return decorated

@@ -18,8 +18,8 @@ from config import (elastic_host, data_index_r, data_index_h, data_index_2h,
                     data_index_d, data_index_2d, data_index_3d, data_index_4d,
                     data_index_5d, data_index_6d, data_index_10d, api_index,
                     data_index_15d, data_index_m, max_plot_points, df_folder,
-                    metadata_index, vocabulary_index, fig_folder, files_folder,
-                    files_url, csv_folder, csv_url)
+                    metadata_index, vocabulary_index, fig_folder, pid_folder,
+                    pid_url, csv_folder, csv_url)
 
 
 def data_ingestion(index_name, data):
@@ -451,7 +451,8 @@ def get_df(platform_code_list, parameter_list, rule, depth_min=None,
 
 def get_metadata(platform_code: str=None, parameter: str=None,
                  depth_min: float=None, depth_max: float=None,
-                 time_min: str=None, time_max: str=None, qc: int=None):
+                 time_min: str=None, time_max: str=None, qc: int=None,
+                 output: str=None):
     """
     Get a list of the avialable platform_codes (the ID of the metadata resurces)
 
@@ -477,6 +478,9 @@ def get_metadata(platform_code: str=None, parameter: str=None,
             Examples: yyyy-MM-dd'T'HH:mm:ss.SSSZ or yyyy-MM-dd.
         qc: int
             Quality Flag value of the measurement.
+        output: str
+            Field to be in the result of the response. It can be 'platform_code'
+            or 'parameter'. By default, it is 'platform_code'.
 
     Returns
     -------
@@ -488,39 +492,64 @@ def get_metadata(platform_code: str=None, parameter: str=None,
             The status_code is 200 - found, 204 - Not found or
             503 - connection error
     """
-    elastic = Elasticsearch(elastic_host)
+    if output == 'parameter':
+        platform_code_list = platform_code.split(',')
+        parameter_list = []
+        for one_platform in platform_code_list:
+            parameter_response, status_code = get_parameter(
+                platform_code=one_platform, depth_min=depth_min,
+                depth_max=depth_max, time_min=time_min, time_max=time_max,
+                qc=qc)
 
-    try:
-        elastic_search = Search(using=elastic, index=metadata_index)
+            if status_code == 200:
+                one_parameter_list = [
+                    one_param[
+                        'key'] for one_param in parameter_response['result']]
+            else:
+                one_parameter_list = []
+            parameter_list += one_parameter_list
 
-        elastic_search = elastic_search.source([])  # only get ids
-        ids = [h.meta.id for h in elastic_search.scan()]
+        parameter_list = list(set(parameter_list))
+        response = {
+            'status': True,
+            'message': 'List of parameters',
+            'result': parameter_list
+        }
+        status_code = 200
+    else:
+        elastic = Elasticsearch(elastic_host)
 
-        # Only return the platform code if it contains data
-        platform_code_list = []
-        for platform_code in ids:
-            response, status_code = get_data_count('M', platform_code,
-                                                   parameter, depth_min,
-                                                   depth_max, time_min,
-                                                   time_max, qc)
-            if status_code == 200 and response['result'][0] > 0:
-                platform_code_list.append(platform_code)
+        try:
+            elastic_search = Search(using=elastic, index=metadata_index)
 
-        if platform_code_list:
-            response = {
-                'status': True,
-                'message': 'List of platform codes',
-                'result': platform_code_list
-            }
-            status_code = 200
-        else:
-            abort(404, 'List of platform codes - empty')
-    except exceptions.NotFoundError:
-            abort(404, 'List of platform codes - empty')
-    except exceptions.ConnectionError:
-        abort(503, 'Connection error with the DB')
+            elastic_search = elastic_search.source([])  # only get ids
+            ids = [h.meta.id for h in elastic_search.scan()]
 
-    elastic.close()
+            # Only return the platform code if it contains data
+            platform_code_list = []
+            for platform_code in ids:
+                response, status_code = get_data_count('M', platform_code,
+                                                    parameter, depth_min,
+                                                    depth_max, time_min,
+                                                    time_max, qc)
+                if status_code == 200 and response['result'][0] > 0:
+                    platform_code_list.append(platform_code)
+
+            if platform_code_list:
+                response = {
+                    'status': True,
+                    'message': 'List of platform codes',
+                    'result': platform_code_list
+                }
+                status_code = 200
+            else:
+                abort(404, 'List of platform codes - empty')
+        except exceptions.NotFoundError:
+                abort(404, 'List of platform codes - empty')
+        except exceptions.ConnectionError:
+            abort(503, 'Connection error with the DB')
+
+        elastic.close()
     return response, status_code
 
 
@@ -1292,7 +1321,13 @@ def get_pid(email):
         for hit in response['hits']['hits']:
             try:
                 if hit['_source']['email'] == email:
-                    pid_list.append(hit['_source']['filename'])
+                    new_pid = {}
+                    new_pid['pid'] = hit['_source'].get('pid')
+                    new_pid['email'] = hit['_source'].get('email')
+                    new_pid['description'] = hit['_source'].get('description')
+                    new_pid['resource'] = hit['_source'].get('resource')
+                    new_pid['url_pid'] = hit['_source'].get('url_pid')
+                    pid_list.append(new_pid)
             except KeyError:
                 pass
 
@@ -1985,16 +2020,13 @@ def post_pid(payload, mail, DOI=False):
     row1_div = ET.Element('div', attrib={'class': 'row1'})
     row2_div = ET.Element('div', attrib={'class': 'row2'})
     row3_div = ET.Element('div', attrib={'class': 'row3'})
-    emso_a = ET.Element('a',
-                        attrib={
-                            'target': '_blank',
-                            'href': 'http://emso.eu/',
-                            'target': '_blank',
-                            'href': 'https://data.emso.eu/home'})
-    emso_logo = ET.Element('img',
-                           attrib={
-                               'src': 'http://emso.eu/wp-content/uploads' + \
-                                   '/2018/03/logo-w-150.png'})
+    emso_a = ET.Element('a', attrib={
+        'target': '_blank',
+        'href': 'http://emso.eu/',
+        'target': '_blank',
+        'href': 'https://data.emso.eu/home'})
+    emso_logo = ET.Element('img', attrib={
+        'src': 'http://emso.eu/wp-content/uploads/2018/03/logo-w-150.png'})
     title_div = ET.Element('div', attrib={'class': 'title'})
     title = ET.Element('h1', attrib={'style': 'padding-top: 1em;'})
     subtitle = ET.Element('h2')
@@ -2003,10 +2035,8 @@ def post_pid(payload, mail, DOI=False):
     table = ET.Element('table', attrib={'class': 'styled-table'})
     thead = ET.Element('thead')
     thead_tr = ET.Element('tr')
-    thead_th1 = ET.Element('th',
-                           attrib={
-                               'style': 'border-right: ' + \
-                                   '2px solid rgb(255, 255, 255)'})
+    thead_th1 = ET.Element('th', attrib={
+        'style': 'border-right: 2px solid rgb(255, 255, 255)'})
     thead_th2 = ET.Element('th')
     tbody = ET.Element('tbody')
 
@@ -2033,10 +2063,59 @@ def post_pid(payload, mail, DOI=False):
     thead_tr.append(thead_th2)
     table.append(tbody)
 
-    title.text = "EMSO ERIC persistent identifier (alfa version)"
+    title.text = "EMSO ERIC Persistent IDentifier (alfa version)"
     subtitle.text = "PID: " + PID
     thead_th1.text = "User Claim"
     thead_th2.text = "Value"
+
+    # Values:
+    show_values = {
+        "resource": "Resource",
+        "resourceTypeGeneral": "Resource description",
+        "version": "Version",
+        "creators": "Creator",
+        "name": "Full name",
+        "givenName": "First name",
+        "familyName": "Surname",
+        "nameType": "Type",
+        "nameIdentifiers": "Name identifier",
+        "nameIdentifier": "Identifier",
+        "nameIdentifierScheme": "Scheme",
+        "schemeUri": "Scheme URI",
+        "affiliation": "Affiliation",
+        "affiliationIdentifier": "Identifier",
+        "affiliationIdentifierScheme": "Scheme",
+        "titles": "Title",
+        "title": "Value",
+        "titleType": "Type",
+        "lang": "Language",
+        "descriptions": "Description",
+        "description": "Value",
+        "descriptionType": "Type"
+    }
+
+    show_indexes = {
+        1: 'First',
+        2: 'Second',
+        3: 'Third',
+        4: 'Fourth',
+        5: 'Fifth',
+        6: 'Sixth',
+        7: 'Seventh',
+        8: 'Eighth',
+        9: 'Ninth',
+        10: 'Tenth',
+        11: 'Eleventh',
+        12: 'Twelfth',
+        13: 'Thirteenth',
+        14: 'Fourteenth',
+        15: 'Fifteenth',
+        16: 'Sixteenth',
+        17: 'Seventeenth',
+        18: 'Eighteenth',
+        19: 'Nineteenth',
+        20: 'Twentieth'
+    }
 
     # Check if required keys and values exist:
     required = ["resource", "resourceTypeGeneral", "version", "creators"]
@@ -2052,8 +2131,8 @@ def post_pid(payload, mail, DOI=False):
                 raise ValueError('No creators added, minimum one required.')
 
     for key, value in payload.items():
-        if key == "resource":
-            claim_tr = ET.Element('tr', attrib={'class': 'active-row'})
+        if isinstance(value, str) and key in required:
+            claim_tr = ET.Element('tr', attrib={'class': 'entrance'})
             claim_td1 = ET.Element('td')
             claim_td2 = ET.Element('td')
 
@@ -2061,117 +2140,79 @@ def post_pid(payload, mail, DOI=False):
             claim_tr.append(claim_td1)
             claim_tr.append(claim_td2)
 
-            claim_td1.text = "API Call"
+            claim_td1.text = show_values[key]
             claim_td2.text = value
-        # Si el valor es una string i està dins dels requireds
-        elif isinstance(value, str) and key in required:
-            claim_tr = ET.Element('tr', attrib={'class': 'active-row'})
-            claim_td1 = ET.Element('td')
-            claim_td2 = ET.Element('td')
-
-            tbody.append(claim_tr)
-            claim_tr.append(claim_td1)
-            claim_tr.append(claim_td2)
-
-            claim_td1.text = key
-            claim_td2.text = value
-        # Si el valor és una llista de creadors:
-        elif isinstance(value, list) and key == 'creators':
-            index = 1
-            for creator in value:
-                if isinstance(creator, dict):
-                    for i, j in creator.items():
-                        # Si es una llista amb elements:
-                        if isinstance(j, list) and len(j) >= 1:
-                            index_2 = 1
-                            for val in j:
-                                if isinstance(val, dict):
-                                    for k, l in val.items():
-                                        if (index % 2) == 0:
-                                            claim_tr = ET.Element(
-                                                'tr',
-                                                attrib={'class': 'active-row'})
-                                        else:
-                                            claim_tr = ET.Element('tr')
-                                        claim_td1 = ET.Element('td')
-                                        claim_td2 = ET.Element('td')
-
-                                        tbody.append(claim_tr)
-                                        claim_tr.append(claim_td1)
-                                        claim_tr.append(claim_td2)
-
-                                        claim_td1.text = key + ' ' + \
-                                            str(index) + ' - ' + i + ' ' + \
-                                            str(index_2) + ' - ' + str(k)
-                                        claim_td2.text = str(l)
-                                    index_2 += 1
-                        else:
-                            if (index % 2) == 0:
-                                claim_tr = ET.Element(
-                                    'tr',
-                                    attrib={'class': 'active-row'})
-                            else:
-                                claim_tr = ET.Element('tr')
-                            claim_td1 = ET.Element('td')
-                            claim_td2 = ET.Element('td')
-
-                            tbody.append(claim_tr)
-                            claim_tr.append(claim_td1)
-                            claim_tr.append(claim_td2)
-
-                            claim_td1.text = key + ' ' + str(index) + \
-                                ' - ' + str(i)
-                            claim_td2.text = str(j)
-                    index += 1
-        # Si el valor es una llista amb elements dels valors opcionals:
-        elif isinstance(value, list) and len(value) >= 1 and key in optional:
-            # Per cada element:
+        elif isinstance(
+            value, list) and len(value) >= 1 and (
+                key in optional or key in required):
             index = 1
             for entrance in value:
+                claim_tr = ET.Element('tr', attrib={'class': 'entrance'})
+                claim_td1 = ET.Element('td', attrib={
+                    'class': 'multiple', 'colspan': "2"})
+
+                tbody.append(claim_tr)
+                claim_tr.append(claim_td1)
+                if len(value) == 1:
+                    claim_td1.text = show_values[key]
+                else:
+                    try:
+                        claim_td1.text = show_indexes[index] + ' ' + \
+                            show_values[key]
+                    except:
+                        claim_td1.text = str(index) + ' ' + show_values[key]
                 if isinstance(entrance, dict):
                     for i, j in entrance.items():
-                        # Si es una llista amb elements:
                         if isinstance(j, list) and len(j) >= 1:
                             index_2 = 1
                             for val in j:
                                 if isinstance(val, dict):
+                                    claim_tr = ET.Element('tr', attrib={
+                                        'class': 'active-row'})
+                                    claim_td1 = ET.Element('td', attrib={
+                                        'class': 'tab multiple_2',
+                                        'colspan': "2"})
+
+                                    tbody.append(claim_tr)
+                                    claim_tr.append(claim_td1)
+
+                                    if len(j) == 1:
+                                        claim_td1.text = show_values[i]
+                                    else:
+                                        try:
+                                            claim_td1.text = \
+                                                show_indexes[index_2] + ' ' + \
+                                                show_values[i]
+                                        except:
+                                            claim_td1.text = str(index_2) + \
+                                                ' ' + show_values[i]
+
                                     for k, l in val.items():
-                                        if (index % 2) == 0:
-                                            claim_tr = ET.Element(
-                                                'tr',
-                                                attrib={'class': 'active-row'})
-                                        else:
-                                            claim_tr = ET.Element('tr')
-                                        claim_td1 = ET.Element('td')
+                                        claim_tr = ET.Element('tr')
+                                        claim_td1 = ET.Element('td', attrib={
+                                            'class': 'tab_2'})
                                         claim_td2 = ET.Element('td')
 
                                         tbody.append(claim_tr)
                                         claim_tr.append(claim_td1)
                                         claim_tr.append(claim_td2)
 
-                                        claim_td1.text = key + ' ' + str(index) + ' - ' + i + ' ' + str(
-                                            index_2) + ' - ' + str(k)
+                                        claim_td1.text = show_values[str(k)]
                                         claim_td2.text = str(l)
                                     index_2 += 1
                         else:
-                            if (index % 2) == 0:
-                                claim_tr = ET.Element(
-                                    'tr',
-                                    attrib={'class': 'active-row'})
-                            else:
-                                claim_tr = ET.Element('tr')
-                            claim_td1 = ET.Element('td')
+                            claim_tr = ET.Element('tr')
+                            claim_td1 = ET.Element('td', attrib={
+                                'class': 'tab'})
                             claim_td2 = ET.Element('td')
 
                             tbody.append(claim_tr)
                             claim_tr.append(claim_td1)
                             claim_tr.append(claim_td2)
 
-                            claim_td1.text = key + ' ' + str(index) + ' - ' + \
-                                str(i)
+                            claim_td1.text = show_values[str(i)]
                             claim_td2.text = str(j)
                     index += 1
-
 
     style.text = """body {
                background-color: #f4f8f9;
@@ -2311,26 +2352,49 @@ def post_pid(payload, mail, DOI=False):
                font-weight: bold;
                color: rgb(24, 128, 30, 0.8)rgb(24, 128, 30, 0.8);
            }
+
+            .styled-table tbody tr.entrance {
+               font-weight: bold;
+               color: rgb(24, 128, 30, 0.8)rgb(24, 128, 30, 0.8);
+               font-size: larger;
+            }
+            .tab {
+                padding-left: 2em
+            }  
+            .tab_2 {
+                padding-left: 4em
+            }
+            .multiple {
+                background-color: aliceblue;
+            }   
+            .multiple_2 {
+                background-color: azure;
+            } 
+
+           
        """
 
     tree = ET.tostring(html, encoding='unicode', method='html')
     sha256 = hash.sha256(tree.encode('utf-8')).hexdigest()
     year = datetime.datetime.now().year
 
-    file_path = files_folder + '/' + str(year) + '/' + sha256 + '.html'
+    file_path = pid_folder + '/' + str(year) + '/' + sha256 + '.html'
     os.makedirs(os.path.dirname(file_path), exist_ok=True)
 
-    filename = files_folder + '/' + str(year) + '/' + PID + '.html'
+    filename = pid_folder + '/' + str(year) + '/' + PID + '.html'
     with open(filename, 'w+') as f:
         f.write(tree)
 
-    url_pid = files_url +  '/' + str(year) + '/' + PID + '.html'
+    url_pid = pid_url +  '/' + str(year) + '/' + PID + '.html'
 
     # Save the PID into the elasticsearch
     elastic = Elasticsearch(elastic_host)
     body = {
         'email': mail,
-        'filename': url_pid
+        'pid': PID,
+        'url_pid': url_pid,
+        'resource': payload['resource'],
+        'description': payload['resourceTypeGeneral'],
     }
     elastic.index('emso-pid', body=body)
 

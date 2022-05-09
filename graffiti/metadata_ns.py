@@ -24,6 +24,8 @@ metadata_parser.add_argument('qc', type=int,
                              choices=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
 metadata_parser.add_argument('platform_code', type=str, help='Platform code')
 metadata_parser.add_argument('parameter', type=str, help='Parameter acronym')
+metadata_parser.add_argument('output', type=str, help='Output of the query',
+                             choices=['platform_code', 'parameter'])
 
 
 format_parser = reqparse.RequestParser()
@@ -52,9 +54,10 @@ class GetMetadata(Resource):
         time_min = request.args.get("time_min")
         time_max = request.args.get("time_max")
         qc = request.args.get("qc")
+        output = request.args.get("output")
 
         return get_metadata(platform_code, parameter, depth_min, depth_max,
-                            time_min, time_max, qc)
+                            time_min, time_max, qc, output)
 
 
 @api.route('/<string:platform_code>')

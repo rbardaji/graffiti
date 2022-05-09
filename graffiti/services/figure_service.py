@@ -6,7 +6,8 @@ import pandas as pd
 
 from flask import abort
 
-from config import fig_folder, fig_url, config_fig, mapbox_access_token
+from config import (fig_folder, fig_url, config_fig, mapbox_access_token,
+                    rolling_window)
 from ..utils.db_manager import (good_rule, get_df, get_metadata, get_parameter,
                                 get_data_count, get_metadata_id)
 from ..utils.helper import time_to_str
@@ -1338,28 +1339,37 @@ def thread_scatter(platform_code_x, parameter_x, platform_code_y, parameter_y,
         parameter_list = [parameter_x, parameter_y, color]
     else:
         parameter_list = [parameter_x, color]
+    if parameter_x == 'time':
+        # Delete parameter_x from parameter_list
+        parameter_list.remove(parameter_x)
+
     rule = get_rule(platform_code_list, parameter_list, depth_min, depth_max,
                     time_min, time_max, qc)  # rule is False if there is a db
-                                            # connection error
+                                             # connection error
 
     if rule:
 
         figure_path = f'{fig_folder}/{fig_name}.html'
 
-        # Get x
-        df_x = get_df(platform_code_x, parameter_x, rule, depth_min, depth_max,
-                      time_min, time_max, qc)
-        df_x.set_index(['depth', 'time'], inplace=True)
-        df_x.rename(columns={'value': f'{platform_code_x}-{parameter_x}'},
-                    inplace=True)
+        if parameter_x != 'time':
+            # Get x
+            df_x = get_df(platform_code_x, parameter_x, rule, depth_min, depth_max,
+                        time_min, time_max, qc)
+            df_x.set_index(['depth', 'time'], inplace=True)
+            df_x.rename(columns={'value': f'{platform_code_x}-{parameter_x}'},
+                        inplace=True)
 
         if parameter_y != 'depth':
             # Get y
             df_y = get_df(platform_code_y, parameter_y, rule, depth_min,
                           depth_max, time_min, time_max, qc)
-            df_y.set_index(['depth', 'time'], inplace=True)
-            df_y.rename(columns={'value': f'{platform_code_y}-{parameter_y}'},
-                        inplace=True)
+            try:
+                df_y.set_index(['depth', 'time'], inplace=True)
+                df_y.rename(columns={'value': f'{platform_code_y}-{parameter_y}'},
+                            inplace=True)
+            except KeyError:
+                figure_path = False
+                return figure_path
 
         if parameter_x == parameter_y:
             df = df_x.join(df_y, how='left',
@@ -1372,16 +1382,42 @@ def thread_scatter(platform_code_x, parameter_x, platform_code_y, parameter_y,
                              marginal_y=marginal_y, trendline=trendline,
                              template=template)
         else:
+
             if parameter_y != 'depth':
-                df = df_x.join(df_y, how='left',
-                               lsuffix=f'_{parameter_x}',
-                               rsuffix=f'_{parameter_y}')
-                df.reset_index(inplace=True)
-                fig = px.scatter(df, x=f'{platform_code_x}-{parameter_x}',
-                                 y=f'{platform_code_y}-{parameter_y}',
-                                 color=color, marginal_x=marginal_x,
-                                 marginal_y=marginal_y, trendline=trendline,
-                                 template=template)
+                if parameter_x == 'time':
+                    # Make the df
+                    df = df_y
+                    df.reset_index(inplace=True)
+                    del df['platform_code']
+                    del df['parameter']
+                    df[[f'{platform_code_y}-{parameter_y}']] = df[[f'{platform_code_y}-{parameter_y}']].apply(pd.to_numeric)
+                    df[['depth']] = df[['depth']].apply(pd.to_numeric)
+                    df['time'] = pd.to_datetime(df['time'])
+
+                    window = int(len(df[f'{platform_code_y}-{parameter_y}']) / 50)
+                    if window < 1:
+                        window = 1
+
+                    fig = px.scatter(df, x=f'{parameter_x}',
+                                    y=f'{platform_code_y}-{parameter_y}',
+                                    color=color,
+                                    marginal_x=marginal_x,
+                                    marginal_y=marginal_y,
+                                    trendline=trendline,
+                                    trendline_options=dict(
+                                        function="mean", window=rolling_window),
+                                    template=template)
+
+                else:
+                    df = df_x.join(df_y, how='left',
+                                lsuffix=f'_{parameter_x}',
+                                rsuffix=f'_{parameter_y}')
+                    df.reset_index(inplace=True)
+                    fig = px.scatter(df, x=f'{platform_code_x}-{parameter_x}',
+                                     y=f'{platform_code_y}-{parameter_y}',
+                                     color=color, marginal_x=marginal_x,
+                                     marginal_y=marginal_y, trendline=trendline,
+                                     template=template)
             else:
                 # Chage defauld color
                 if color == 'depth':

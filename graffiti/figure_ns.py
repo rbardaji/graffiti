@@ -52,7 +52,7 @@ advanced_parser.add_argument('marginal_y', type=str,
                              help='Additional chart in the x axis',
                              choices=['histogram', 'rug', 'box', 'violin'])
 advanced_parser.add_argument('trendline', type=str, help='Make a trendline',
-                             choices=['ols', 'lowess', 'expanding'])
+                             choices=['ols', 'lowess', 'expanding', 'rolling'])
 
 
 @api.route('/area/<string:platform_code>/<string:parameter>')
@@ -269,9 +269,6 @@ class GetFigMap(Resource):
 
 
 @api.route('/scatter/<string:platform_code_x>/<string:parameter_x>/<string:platform_code_y>/<string:parameter_y>')
-@api.param('platform_code', 'Platform Code')
-@api.param('x', 'Parameter in x axis')
-@api.param('y', 'Parameter in y axis')
 @api.response(204, 'Data not found')
 @api.response(401, 'Invalid token')
 @api.response(503, 'Connection error with the DB')

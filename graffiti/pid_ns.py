@@ -103,6 +103,8 @@ class GetPostPid(Resource):
         """
         return post_pid(api.payload, email, DOI=False)
 
+    @api.doc(security='apikey')
+    @token_required
     @save_request
     def get(self, email):
         """
