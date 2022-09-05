@@ -122,6 +122,7 @@ funding_reference = api.model('funding_reference', {
 
 doi_info = api.model('doi_info', {
     'url': fields.String(required=True, description='Link to the resource'),
+    'publisher': fields.String(required=True, description='Publisher'),
     'creators': fields.List(fields.Nested(creator_identifiers), required=True),
     'titles': fields.List(fields.Nested(title_identifiers),
                           required=True, description='Titles of the resource'),
