@@ -1265,7 +1265,7 @@ def post_doi(payload):
             data=payload,
             auth=('emso.emso', 'cmo@EMSO!'))
         if response.status_code == 201:
-            
+
             return {
                 'status': True,
                 'message': 'DOI correctly generated',
@@ -1294,8 +1294,8 @@ def post_doi(payload):
         "isActive": True,
         "metadataVersion": "1.0.0",
         "schemaVersion": "http://datacite.org/schema/kernel-4",
-        "publisher": "European Multidisciplinary Seafloor and water-column " + \
-            "Observatory (EMSO)",
+        # "publisher": "European Multidisciplinary Seafloor and water-column " + \
+        #     "Observatory (EMSO)",
         "publicationYear": datetime.datetime.now().year
     }
 
