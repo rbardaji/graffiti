@@ -1,335 +1,180 @@
+from elasticsearch_dsl import Nested
 from flask_restx import Namespace, Resource, fields
 
-from .utils.decorator import save_request
+from .utils.decorator import save_request, token_required
 from .utils.db_manager import get_doi, post_doi
+
 
 api = Namespace('doi', description='DOI management')
 
-# identifiers_model = api.schema_model('identifiers_model', {
-#     'data': {
-#         'id': {'type': 'string'},
-#         'type': {'type': 'string'},
-#         'attributes': {
-#             'doi': {'type': 'string'},
-#             'event': {'type': 'string'},
-#             'prefix': {'type': 'string'},
-#             'suffix': {'type': 'string'},
-#             'identifiers': [],
-#             'type': 'object'},
-#     },
-#     'type': 'object'
-# })
 
-# doy_payload = api.schema_model('doi_content', {
-#     'data': {
-#         'id': {'type': 'string'},
-#         'type': {'type': 'string'},
-#         'attributes': {
-#             'doi': {'type': 'string'},
-#             'event': {'type': 'string'},
-#             'prefix': {'type': 'string'},
-#             'suffix': {'type': 'string'},
-#             'identifiers': [],
-#             'type': 'object'},
-#     },
-#     'type': 'object'
-# })
-
-doy_payload = api.model('doi_content', {
-    'data': fields.Raw(required=True, example={
-        "attributes": {
-        "suffix": "DOI sufix, only use it if we do not have doi and id fields and want to specify the DOI sufix",
-        "identifiers": [
-            {
-            "identifier": "DOI as url -> Example https://doi.org/10.80110/0001",
-            "identifierType": "Type of identifier, its value is DOI -> DOI"
-            }
-        ],
-        "creators": [
-            {
-            "name": "Creator name",
-            "givenName": "The personal or first name of the creator",
-            "familyName": "The surname or last name of the creator",
-            "nameType": "Description for the name type, can be Organizational or Personal -> Example Personal",
-            "nameIdentifiers": [
-                {
-                "nameIdentifier": "Uniquely identifies an individual or legal entity, according to various schemes",
-                "nameIdentifierScheme": "Name of the name identifier scheme -> Example ORCID",
-                "schemeUri": "URI of the name identifier scheme -> Example https://orcid.org"
-                }
-            ],
-            "affiliation": [
-                {
-                "name": "Name of the affiliation identifier",
-                "affiliationIdentifier": "Uniquely identifies the organizational affiliation of the creator",
-                "affiliationIdentifierScheme": "The name of the affiliation identifier scheme",
-                "schemeUri": "The URI of the affiliation identifier scheme"
-                }
-            ]
-            }
-        ],
-        "titles": [
-            {
-            "title": "DataCite Metadata Schema Documentation for the Publication and Citation of Research Data v4.0",
-            "titleType": "The type of Title, it can be: AlternativeTitle, Subtitle, TranslatedTitle, Other -> Example AlternativeTitle",
-            "lang": "Idiom -> Example English"
-            }
-        ],
-        "publicationYear": 2021,
-        "subjects": [
-            {
-            "subject": "Subject, keyword, classification code, or key phrase describing the resource",
-            "subjectScheme": "The name of the subject scheme or classification code or authority if one is used",
-            "schemeUri": "The URI of the subject identifier scheme",
-            "valueUri": "The URI of the subject term",
-            "lang": "Idiom -> Example English"
-            }
-        ],
-        "contributors": [
-            {
-            "nameIdentifiers": [
-                {
-                "nameIdentifier": "Uniquely identifies an individual or legal entity, according to various schemes",
-                "nameIdentifierScheme": "The name of the name identifier scheme",
-                "schemeUri": "The URI of the name identifier scheme"
-                }
-            ],
-            "nameType": "The type of name, values:  Organizational, Personal -> Example Personal",
-            "name": "The full name of the contributor",
-            "givenName": "The personal or first name of the contributor",
-            "familyName": "The surname or last name of the contributor",
-            "affiliation": "The organizational or institutional affiliation of the contributor",
-            "contributorType": "The type of contributor of the resource, values: ContactPerson, DataCollector, DataCurator, DataManager, Distributor, Editor, HostingInstitution, Producer, ProjectLeader, ProjectManager, ProjectMember, RegistrationAgency, RegistrationAuthority, RelatedPerson, Researcher, ResearchGroup, RightsHolder, Sponsor, Supervisor, WorkPackageLeader, Other -> Example Editor"
-            }
-        ],
-        "dates": [
-            {
-            "date": "Different dates relevant to the work, values: YYYY, YYYY-MM-DD, YYYY-MM-DDThh:mm:ssTZD or any other format described in W3CDTF -> Example 2004-03-02",
-            "dateType": "The type of date, values: Accepted, Available, Copyrighted, Collected, Created, Issued, Submitted, Updated, Valid, Withdrawn, Other -> Example Created"
-            }
-        ],
-        "language": "The primary language of the resource, recommended values are taken from IETF BCP 47, ISO 639-1 language codes -> Example en",
-        "types": {
-            "resourceTypeGeneral": "The general type of the resource, values: Audiovisual, Book, BookChapter, Collection, ComputationalNotebook, ConferencePaper, ConferenceProceeding, DataPaper, Dataset, Dissertation, Event, Image, InteractiveResource, Model, PeerReview, Report, Software, Sound, Standard, Text, Workflow, Other",
-            "resourceType": "A description of the resource, free-format text. The recommended content is a single term of some detail so that a pair can be formed with the resourceTypeGeneral subproperty"
-        },
-        "relatedIdentifiers": [
-            {
-            "relatedIdentifier": "Identifiers of related resources. These must be globally unique identifiers. Free text",
-            "relatedIdentifierType": "The type of the RelatedIdentifier, values: ARK, arXiv, bibcode, DOI, EAN13, EISSN, Handle, IGSN, ISBN, ISSN, ISTC, LISSN, LSID, PMID, PURL, UPC, URL, URN, w3id",
-            "resourceTypeGeneral": "The general type of the related resource, values: Audiovisual, Book, BookChapter, Collection, ComputationalNotebook, ConferencePaper, ConferenceProceeding, DataPaper, Dataset, Dissertation, Event, Image, InteractiveResource, Model, PeerReview, Report, Software, Sound, Standard, Text, Workflow, Other",
-            "relationType": "The realtion with the DOI, values: IsCitedBy, Cites, IsSupplementTo, IsSupplementedBy, IsContinuedBy, Continues, IsNewVersionOf, IsPreviousVersionOf, IsPartOf, HasPart, IsPublishedIn, IsReferencedBy, References, IsDocumentedBy, Documents, IsCompiledBy, Compiles, IsVariantFormOf, IsOriginalFormOf, IsIdenticalTo, HasMetadata, IsMetadataFor, Reviews, IsReviewedBy, IsDerivedFrom, IsSourceOf, Describes, IsDescribedBy, HasVersion, IsVersionOf, Requires, IsRequiredBy, Obsoletes, IsObsoletedBy"
-            }
-        ],
-        "sizes": [
-            "sizes of the files -> Example 10Mb"
-        ],
-        "formats": [
-            "formats of the files -> Example JSON"
-        ],
-        "rightsList": [
-            {
-            "rights": "Any rights information for this resource. The property may be repeated to record complex rights characteristics. Free text -> Example Apache License, Version 2.0",
-            "rightsUri": "The URI of the license",
-            "lang": "Idiom -> Example English"
-            }
-        ],
-        "descriptions": [
-            {
-            "description": "All additional information that does not fit in any of the other categories. May be used for technical information. free text",
-            "descriptionType": "The type of the description, values: Abstract, Methods, SeriesInformation, TableOfContents, TechnicalInfo, Other",
-            "lang": "Idiom -> Example English"
-            }
-        ],
-        "geoLocations": [
-            {
-            "geoLocationPoint": {
-                "pointLongitude": "Longitude of the geographic point expressed in decimal degrees (positive east), between -180 and 180 -> Example -67",
-                "pointLatitude": "Latitude of the geographic point expressed in decimal degrees (positive north), between -90 and 90 -> Example 31.233"
-            },
-            "geoLocationBox": {
-                "westBoundLongitude": "Longitude of the geographic point expressed in decimal degrees (positive east), between -180 and 180 -> Example -67",
-                "eastBoundLongitude": "Longitude of the geographic point expressed in decimal degrees (positive east), between -180 and 180  -> Example 31.233",
-                "southBoundLatitude": "Latitude of the geographic point expressed in decimal degrees (positive north), between -90 and 90  -> Example 31.233",
-                "northBoundLatitude": "Latitude of the geographic point expressed in decimal degrees (positive north), between -90 and 90  -> Example 31.233"
-            },
-            "geoLocationPlace": "Description of a geographic location. Free text"
-            }
-        ],
-        "fundingReferences": [
-            {
-            "funderName": "Name of the funding provider",
-            "funderIdentifier": "Uniquely identifies a funding entity, according to various types.",
-            "funderIdentifierType": "The type of the funderIdentifier, values: Crossref Funder ID, GRID, ISNI, ROR, Other",
-            "awardNumber": "The code assigned by the funder to a sponsored award (grant)",
-            "awardUri": "The URI leading to a page provided by the funder for more information about the award (grant)",
-            "awardTitle": "The human readable title or name of the award (grant)"
-            }
-        ],
-    }})})
+related_identifiers = api.model('relatedIdentifiers', {
+    'relatedIdentifier': fields.String(
+        required=True, description='Related identifier'),
+    'relatedIdentifierType': fields.String(
+        required=True, description='Related identifier type'),
+    'resourceTypeGeneral': fields.String(
+        required=True, description='Resource type general'),
+    'relationType': fields.String(
+        required=True, description='Relation type')
+})
 
 
-# doy_payload = api.model('doi_content', {
-#     'data': fields.Raw(required=True, example={
-#         "id": "DOI prefix and sufix, if we use this field, delete the prefix sub-field of the attributes field -> Example 10.80110/0001",
-#         "type": "statics field, its value is dois -> dois",
-#         "attributes": {
-#         "doi": "DOI prefix and sufix, if we use this field, delete the prefix sub-field of the attributes field -> Example 10.80110/0001",
-#         "event": "State of the DOI, it's values can be publish, register or hide -> Example publish",
-#         "prefix": "DOI prefix, if we use this field, delete the id and doi field, it will rendom generate the sufix -> Example 10.80110",
-#         "suffix": "DOI sufix, only use it if we do not have doi and id fields and want to specify the DOI sufix",
-#         "identifiers": [
-#             {
-#             "identifier": "DOI as url -> Example https://doi.org/10.80110/0001",
-#             "identifierType": "Type of identifier, its value is DOI -> DOI"
-#             }
-#         ],
-#         "creators": [
-#             {
-#             "name": "Creator name",
-#             "givenName": "The personal or first name of the creator",
-#             "familyName": "The surname or last name of the creator",
-#             "nameType": "Description for the name type, can be Organizational or Personal -> Example Personal",
-#             "nameIdentifiers": [
-#                 {
-#                 "nameIdentifier": "Uniquely identifies an individual or legal entity, according to various schemes",
-#                 "nameIdentifierScheme": "Name of the name identifier scheme -> Example ORCID",
-#                 "schemeUri": "URI of the name identifier scheme -> Example https://orcid.org"
-#                 }
-#             ],
-#             "affiliation": [
-#                 {
-#                 "name": "Name of the affiliation identifier",
-#                 "affiliationIdentifier": "Uniquely identifies the organizational affiliation of the creator",
-#                 "affiliationIdentifierScheme": "The name of the affiliation identifier scheme",
-#                 "schemeUri": "The URI of the affiliation identifier scheme"
-#                 }
-#             ]
-#             }
-#         ],
-#         "titles": [
-#             {
-#             "title": "DataCite Metadata Schema Documentation for the Publication and Citation of Research Data v4.0",
-#             "titleType": "The type of Title, it can be: AlternativeTitle, Subtitle, TranslatedTitle, Other -> Example AlternativeTitle",
-#             "lang": "Idiom -> Example English"
-#             }
-#         ],
-#         "publisher": "The name of the entity that holds, archives, publishes prints, distributes, releases, issues, or produces the resource, used to formulate the citation -> Example European Multidisciplinary Seafloor and water-column Observatory (EMSO)",
-#         "publicationYear": 2021,
-#         "subjects": [
-#             {
-#             "subject": "Subject, keyword, classification code, or key phrase describing the resource",
-#             "subjectScheme": "The name of the subject scheme or classification code or authority if one is used",
-#             "schemeUri": "The URI of the subject identifier scheme",
-#             "valueUri": "The URI of the subject term",
-#             "lang": "Idiom -> Example English"
-#             }
-#         ],
-#         "contributors": [
-#             {
-#             "nameIdentifiers": [
-#                 {
-#                 "nameIdentifier": "Uniquely identifies an individual or legal entity, according to various schemes",
-#                 "nameIdentifierScheme": "The name of the name identifier scheme",
-#                 "schemeUri": "The URI of the name identifier scheme"
-#                 }
-#             ],
-#             "nameType": "The type of name, values:  Organizational, Personal -> Example Personal",
-#             "name": "The full name of the contributor",
-#             "givenName": "The personal or first name of the contributor",
-#             "familyName": "The surname or last name of the contributor",
-#             "affiliation": "The organizational or institutional affiliation of the contributor",
-#             "contributorType": "The type of contributor of the resource, values: ContactPerson, DataCollector, DataCurator, DataManager, Distributor, Editor, HostingInstitution, Producer, ProjectLeader, ProjectManager, ProjectMember, RegistrationAgency, RegistrationAuthority, RelatedPerson, Researcher, ResearchGroup, RightsHolder, Sponsor, Supervisor, WorkPackageLeader, Other -> Example Editor"
-#             }
-#         ],
-#         "dates": [
-#             {
-#             "date": "Different dates relevant to the work, values: YYYY, YYYY-MM-DD, YYYY-MM-DDThh:mm:ssTZD or any other format described in W3CDTF -> Example 2004-03-02",
-#             "dateType": "The type of date, values: Accepted, Available, Copyrighted, Collected, Created, Issued, Submitted, Updated, Valid, Withdrawn, Other -> Example Created"
-#             }
-#         ],
-#         "language": "The primary language of the resource, recommended values are taken from IETF BCP 47, ISO 639-1 language codes -> Example en",
-#         "types": {
-#             "resourceTypeGeneral": "The general type of the resource, values: Audiovisual, Book, BookChapter, Collection, ComputationalNotebook, ConferencePaper, ConferenceProceeding, DataPaper, Dataset, Dissertation, Event, Image, InteractiveResource, Model, PeerReview, Report, Software, Sound, Standard, Text, Workflow, Other",
-#             "resourceType": "A description of the resource, free-format text. The recommended content is a single term of some detail so that a pair can be formed with the resourceTypeGeneral subproperty"
-#         },
-#         "relatedIdentifiers": [
-#             {
-#             "relatedIdentifier": "Identifiers of related resources. These must be globally unique identifiers. Free text",
-#             "relatedIdentifierType": "The type of the RelatedIdentifier, values: ARK, arXiv, bibcode, DOI, EAN13, EISSN, Handle, IGSN, ISBN, ISSN, ISTC, LISSN, LSID, PMID, PURL, UPC, URL, URN, w3id",
-#             "resourceTypeGeneral": "The general type of the related resource, values: Audiovisual, Book, BookChapter, Collection, ComputationalNotebook, ConferencePaper, ConferenceProceeding, DataPaper, Dataset, Dissertation, Event, Image, InteractiveResource, Model, PeerReview, Report, Software, Sound, Standard, Text, Workflow, Other",
-#             "relationType": "The realtion with the DOI, values: IsCitedBy, Cites, IsSupplementTo, IsSupplementedBy, IsContinuedBy, Continues, IsNewVersionOf, IsPreviousVersionOf, IsPartOf, HasPart, IsPublishedIn, IsReferencedBy, References, IsDocumentedBy, Documents, IsCompiledBy, Compiles, IsVariantFormOf, IsOriginalFormOf, IsIdenticalTo, HasMetadata, IsMetadataFor, Reviews, IsReviewedBy, IsDerivedFrom, IsSourceOf, Describes, IsDescribedBy, HasVersion, IsVersionOf, Requires, IsRequiredBy, Obsoletes, IsObsoletedBy"
-#             }
-#         ],
-#         "sizes": [
-#             "sizes of the files -> Example 10Mb"
-#         ],
-#         "formats": [
-#             "formats of the files -> Example JSON"
-#         ],
-#         "version": "The version number of the resource -> Example 0.1.2",
-#         "rightsList": [
-#             {
-#             "rights": "Any rights information for this resource. The property may be repeated to record complex rights characteristics. Free text -> Example Apache License, Version 2.0",
-#             "rightsUri": "The URI of the license",
-#             "lang": "Idiom -> Example English"
-#             }
-#         ],
-#         "descriptions": [
-#             {
-#             "description": "All additional information that does not fit in any of the other categories. May be used for technical information. free text",
-#             "descriptionType": "The type of the description, values: Abstract, Methods, SeriesInformation, TableOfContents, TechnicalInfo, Other",
-#             "lang": "Idiom -> Example English"
-#             }
-#         ],
-#         "geoLocations": [
-#             {
-#             "geoLocationPoint": {
-#                 "pointLongitude": "Longitude of the geographic point expressed in decimal degrees (positive east), between -180 and 180 -> Example -67",
-#                 "pointLatitude": "Latitude of the geographic point expressed in decimal degrees (positive north), between -90 and 90 -> Example 31.233"
-#             },
-#             "geoLocationBox": {
-#                 "westBoundLongitude": "Longitude of the geographic point expressed in decimal degrees (positive east), between -180 and 180 -> Example -67",
-#                 "eastBoundLongitude": "Longitude of the geographic point expressed in decimal degrees (positive east), between -180 and 180  -> Example 31.233",
-#                 "southBoundLatitude": "Latitude of the geographic point expressed in decimal degrees (positive north), between -90 and 90  -> Example 31.233",
-#                 "northBoundLatitude": "Latitude of the geographic point expressed in decimal degrees (positive north), between -90 and 90  -> Example 31.233"
-#             },
-#             "geoLocationPlace": "Description of a geographic location. Free text"
-#             }
-#         ],
-#         "fundingReferences": [
-#             {
-#             "funderName": "Name of the funding provider",
-#             "funderIdentifier": "Uniquely identifies a funding entity, according to various types.",
-#             "funderIdentifierType": "The type of the funderIdentifier, values: Crossref Funder ID, GRID, ISNI, ROR, Other",
-#             "awardNumber": "The code assigned by the funder to a sponsored award (grant)",
-#             "awardUri": "The URI leading to a page provided by the funder for more information about the award (grant)",
-#             "awardTitle": "The human readable title or name of the award (grant)"
-#             }
-#         ],
-#         "isActive": "Boolean indicating if the DOI is active -> Example true",
-#         "metadataVersion": "Version of the DOI metadata -> Example 0.1.1",
-#         "url": "https://schema.datacite.org/meta/kernel-4.0/index.html",
-#         "schemaVersion": "http://datacite.org/schema/kernel-4"
-#     }})})
+name_identifiers = api.model('name_identifiers', {
+    'nameIdentifier': fields.String(required=True, description='Name identifier'),
+    'nameIdentifierScheme': fields.String(required=True, description='Name identifier scheme'),
+    'schemeUri': fields.String(required=True, description='Scheme URI')
+})
 
-@api.route('/<string:user>')
-@api.response(201, 'Created')
+
+affiliation = api.model('affiliation', {
+    'name': fields.String(required=True, description='Name'),
+    'affiliationIdentifier': fields.String(required=True, description='Affiliation identifier'),
+    'affiliationIdentifierScheme': fields.String(required=True, description='Affiliation identifier scheme'),
+    'schemeUri': fields.String(required=True, description='Scheme URI')
+})
+
+
+creator_identifiers = api.model('creator_identifiers', {
+    'name': fields.String(
+        required=True, description='Name identifier of the creator'),
+    'givenName': fields.String(
+        required=True, description='Given name of the creator'),
+    'familyName': fields.String(
+        required=True, description='Family name of the creator'),
+    'nameType': fields.String(
+        required=True,
+        description='Type of name'),
+    'nameIdentifiers': fields.List(
+        fields.Nested(name_identifiers), required=True,
+        description='Name identifiers of the creator'),
+    'affiliation': fields.List(
+        fields.Nested(affiliation), required=True,
+        description='Affiliation of the creator')
+})
+
+
+title_identifiers = api.model('title_identifiers', {
+    'title': fields.String(
+        required=True, description='Title of the work'),
+    'titleType': fields.String(
+        required=False, description='Type of title'),
+    'lang': fields.String(
+        required=False, description='Language of the title')
+})
+
+
+type_identifiers = api.model('type_identifiers', {
+    'resourceTypeGeneral': fields.String(
+        required=True, description='resourceTypeGeneral'),
+    'resourceType': fields.String(
+        required=True, description='resourceType')
+})
+
+
+contributors = api.model('contributors', {
+    'name': fields.String(required=True, description='Name of the contributor'),
+    'givenName': fields.String(required=True, description='Given name of the contributor'),
+    'familyName': fields.String(required=True, description='Family name of the contributor'),
+    'nameType': fields.String(required=True, description='Type of name'),
+    'contributorType': fields.String(required=True, description='Type of contributor'),
+    'nameIdentifiers': fields.List(
+        fields.Nested(name_identifiers), required=True,
+        description='Name identifiers of the contributor')
+})
+
+
+description = api.model('description', {
+    'description': fields.String(required=True, description='Description'),
+    'descriptionType': fields.String(required=True, description='Description type'),
+    'lang': fields.String(required=True, description='Language')
+})
+
+
+geo_location_point = api.model('geo_location_point', {
+    'pointLongitude': fields.String(required=True, description='Point longitude'),
+    'pointLatitude': fields.String(required=True, description='Point latitude')
+})
+
+
+geo_location = api.model('geo_location', {
+    'geoLocationPoint': fields.Nested(geo_location_point, required=True, description='Geo location point'),
+    'geoLocationPlace': fields.String(required=True, description='Geo location place')
+})
+
+
+rights = api.model('rights', {
+    'rights': fields.String(required=True, description='Rights'),
+    'rightsUri': fields.String(required=True, description='Rights URI'),
+    'lang': fields.String(required=True, description='Language')
+})
+
+
+funding_reference = api.model('funding_reference', {
+    'funderName': fields.String(required=True, description='Funder name'),
+    'funderIdentifier': fields.String(required=True, description='Funder identifier'),
+    'funderIdentifierType': fields.String(required=True, description='Funder identifier type'),
+    'awardNumber': fields.String(required=True, description='Award number'),
+    'awardUri': fields.String(required=True, description='Award URI'),
+    'awardTitle': fields.String(required=True, description='Award title')
+})
+
+
+doi_info = api.model('doi_info', {
+    'url': fields.String(required=True, description='Link to the resource'),
+    'creators': fields.List(fields.Nested(creator_identifiers), required=True),
+    'titles': fields.List(fields.Nested(title_identifiers),
+                          required=True, description='Titles of the resource'),
+    'contributors': fields.List(fields.Nested(contributors), required=True),
+    'types': fields.Nested(type_identifiers),
+    'relatedIdentifiers': fields.List(
+        fields.Nested(related_identifiers), required=True,
+        description='Related identifiers of the resource'),
+    'descriptions': fields.List(
+        fields.Nested(description), required=True,
+        description='Descriptions of the resource'),
+    'geoLocations': fields.List(
+        fields.Nested(geo_location), required=True,
+        description='Geo locations of the resource'),
+    'formats': fields.List(
+        fields.String, required=True,
+        description='Formats of the resource'),
+    'sizes': fields.List(
+        fields.String, required=True,
+        description='Sizes of the resource'),
+    'rightsList': fields.List(
+        fields.Nested(rights), required=True,
+        description='Rights of the resource'),
+    'fundingReferences': fields.List(
+        fields.Nested(funding_reference), required=True,
+        description='Funding references of the resource')
+})
+
+
+@api.route('')
+@api.response(201, 'DOI created')
+@api.response(204, 'Email not found')
 @api.response(401, 'Provide a valid Token')
-@api.response(403, 'Not available DOIs')
-@api.response(502, 'API cannot access to the DB')
+@api.response(500, 'Server error')
+@api.response(503, 'Connection error with the DB')
 class GetPostDOI(Resource):
+    """ DOI operations"""
+    @api.doc(security='apikey')
+    @token_required
     @save_request
-    def get(self, user):
+    @api.expect(doi_info)
+    def post(self):
         """
-        Get the number of available DOIs per user
+        Create a PID for a resource
         """
-        return get_doi(user)
+        return post_doi(api.payload)
 
-    @api.expect(doy_payload)
+
+    @api.doc(security='apikey')
+    @token_required
     @save_request
-    def post(self, user):
+    def get(self):
         """
-        Post the document of the payload and get a DOI number
+        Get the DOIs from a user
         """
-        return post_doi(user, api.payload)
+        return get_doi()

@@ -761,26 +761,8 @@ def thread_platform_availability(platform_code, fig_name, depth_min=None,
     if not parameters:
         return False
 
-    # Get good rule
-    search_string = '{"platform_code":' + f'"{platform_code}"' + \
-        ',"parameter":' + f'"{parameters[0]}"' + '}'
-    if depth_min:
-        search_string = search_string[:-1] + \
-            f',"depth_min":{depth_min}' + '}'
-    if depth_max:
-        search_string = search_string[:-1] + \
-            f',"depth_max":{depth_max}' + '}'
-    if time_min:
-        search_string = search_string[:-1] + \
-            f',"time_min":"{time_min}"' + '}'
-    if time_max:
-        search_string = search_string[:-1] + \
-            f',"time_max":"{time_max}"' + '}'
-    if qc:
-        search_string = search_string[:-1] + \
-            f',"qc":{qc}' + '}'
-
-    rule = good_rule(search_string)
+    rule = get_rule(platform_code, parameters, depth_min, depth_max, time_min,
+                    time_max, qc)
 
     if rule:
 

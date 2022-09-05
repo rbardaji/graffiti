@@ -9,9 +9,10 @@ import datetime
 from elasticsearch import Elasticsearch, exceptions
 from elasticsearch_dsl import Search, A
 from xml.etree import ElementTree as ET
-from flask import abort
+from flask import abort, request
 
 from .helper import index_name, time_to_str
+from .auth_manager import get_token_info
 
 from config import (elastic_host, data_index_r, data_index_h, data_index_2h,
                     data_index_3h, data_index_6h, data_index_8h, data_index_12h,
@@ -353,6 +354,8 @@ def get_df(platform_code_list, parameter_list, rule, depth_min=None,
     -------
         df: pandas DataFrame
     """
+    print('Getting data from the database...')
+
     if isinstance(platform_code_list, str):
         platform_code_list = [platform_code_list]
     if isinstance(parameter_list, str):
@@ -364,7 +367,9 @@ def get_df(platform_code_list, parameter_list, rule, depth_min=None,
 
     for platform_code in platform_code_list:
 
+        print('Getting data from platform {}...'.format(platform_code))
         for parameter in parameter_list:
+            print('Getting data from parameter {}...'.format(parameter))
 
             df_name = f'{platform_code}_{parameter}_{rule}_dmin{depth_min}' + \
                 f'_dmax{depth_max}_tmin{time_min_str}_tmax{time_max_str}_qc{qc}'
@@ -399,6 +404,7 @@ def get_df(platform_code_list, parameter_list, rule, depth_min=None,
                 data_id_list = response['result']
                 data = []
                 for data_id in data_id_list:
+                    print('Getting data from id {}...'.format(data_id))
                     response, status_code = get_data_id(data_id, rule)
 
 
@@ -492,6 +498,7 @@ def get_metadata(platform_code: str=None, parameter: str=None,
             The status_code is 200 - found, 204 - Not found or
             503 - connection error
     """
+
     if output == 'parameter':
         platform_code_list = platform_code.split(',')
         parameter_list = []
@@ -1142,10 +1149,12 @@ def delete_metadata(platform_code: str):
     return status_code
 
 
-def get_doi(user):
+def get_doi():
     """
     Update the available DOI numbers of an user
     """
+    data, _ = get_token_info(request)
+    user = data['result'].get('user_id', 'anonymus')
     try:
         elastic = Elasticsearch(elastic_host)
 
@@ -1234,63 +1243,162 @@ def put_doi(user: str, num_doi: int):
     return response, status_code
 
 
-def post_doi(user, document):
+def post_doi(payload):
     """
     Create a DOI
     """
-    elastic = Elasticsearch(elastic_host)
 
-    # Search for available DOIs
-    # Search for user
-    search_body = {
-        'query': {
-            'match': {
-                'user': user}}}
-    
-    response = elastic.search(index='emso-doi', body=search_body)
-    if response['hits']['hits']:
-        user_id = response['hits']['hits'][0]['_id']
-        num_doi = int(response['hits']['hits'][0]['_source']['num_doi'])
-    else:
-        num_doi = 0
-
-    if num_doi > 0:
-
-        # data = json.dumps(json.load(open(document)))
-        data = json.dumps(document)
-
-        headers = {
-            'Content-Type': 'application/vnd.api+json',
-        }
-
-        response = requests.post('https://api.test.datacite.org/dois', headers=headers, data=data,
+    def create_doi(payload):
+        # subtract a DOI value from the user info of elastic
+        # Get the user
+        data, _ = get_token_info(request)
+        user = data['result'].get('user_id', 'anonymus')
+        # Get the DOI number
+        response, status_code = get_doi()
+        doy_number = int(response['result'])
+        # Update the DOI number
+        response, status_code = put_doi(user, doy_number - 1)
+        # TODO: AQUI HAY QUE COMPROBAR QUE EL STATUS_CODE ES 201
+        response = requests.post(
+            'https://api.test.datacite.org/dois',
+            headers={'Content-Type': 'application/vnd.api+json'},
+            data=payload,
             auth=('emso.emso', 'cmo@EMSO!'))
+        if response.status_code == 201:
+            
+            return {
+                'status': True,
+                'message': 'DOI correctly generated',
+                'result': json.loads(response.text)['data']['id']
+            }, 201
 
-        if response.status_code == 403:
+        else:
+            try:
+                message = response.json()['errors'][0]['title']
+            except:
+                message = 'Invalid DOI payload'
+            # message = payload.json()['errors'][0]['title']
             return {
                 'status': False,
-                'message': f'datacite.org: You are not authorized to access this resource',
+                'message': message,
                 'result': []
-            }, 403
+            }, 422
 
-        # Decrementar un numero de doi
-        body = {
-            'user': user,
-            'num_doi': num_doi - 1
+
+    payload = json.loads(json.dumps(payload))
+
+    fixed_attributes = {
+        "event": "publish",
+        "prefix": "10.80110",
+        "language": "en",
+        "isActive": True,
+        "metadataVersion": "1.0.0",
+        "schemaVersion": "http://datacite.org/schema/kernel-4",
+        "publisher": "European Multidisciplinary Seafloor and water-column " + \
+            "Observatory (EMSO)",
+        "publicationYear": datetime.datetime.now().year
+    }
+
+    final_payload = {
+        "data": {
+            "type": "dois",
+            "attributes": {
+                "event": "",
+                "prefix": "",
+                "language": "",
+                "isActive": True,
+                "metadataVersion": "",
+                "schemaVersion": "",
+                "publisher": "",
+                "publicationYear": None
+            }
         }
-        elastic.index('emso-doi', id=user_id, body=body)
+    }
 
-        return {
-            'status': True,
-            'message': f'Available DOIs for {user}: {num_doi - 1}',
-            'result': response.json()
-        }, 201
-    else:
-        return {
-            'status': False,
-            'message': f'Available DOIs for {user}: {num_doi}',
-            'result': []
-        }, 403
+    final_payload["data"]["attributes"].update(payload)
+    final_payload["data"]["attributes"].update(fixed_attributes)
+
+    # Check if required keys exist:
+    for key in ["url", "creators", "titles", "types"]:
+        if key not in payload:
+            raise KeyError(
+                'Required key "' + key + '" does not exist on the DOI payload.')
+
+    # Check if requried values are correctly configured
+    for key, value in final_payload["data"]["attributes"].items():
+        if key == "url":
+            if len(value) <= 0:
+                raise KeyError('Resource URL must be filled correctly.')
+
+        if key == "creators":
+            if len(value) == 0:
+                raise KeyError('At least one creator must be added.')
+            for creator in value:
+                if len(creator["name"]) == 0:
+                    return {
+                        'status': False,
+                        'message': 'Creator name must be filled correctly.',
+                        'result': []
+                    }, 400
+                if creator["nameType"] not in ["Organizational", "Personal"]:
+                    return {
+                        'status': False,
+                        'message': 'Creator nameType must be "Organizational" or "Personal".',
+                        'result': []
+                    }, 400
+
+        if key == "titles":
+            if len(value) == 0:
+                return {
+                    'status': False,
+                    'message': 'At least one title must be added.',
+                    'result': []
+                }, 400
+            for i, title in enumerate(value):
+                if len(title["title"]) == 0:
+                    return {
+                        'status': False,
+                        'message': 'Title must be filled correctly.',
+                        'result': []
+                    }, 400
+                if i != 0 and title["titleType"] not in ["AlternativeTitle",
+                                                         "Subtitle",
+                                                         "TranslatedTitle",
+                                                         "Other"]:
+                    return {
+                        'status': False,
+                        'message': 'TitleType must be "AlternativeTitle", "Subtitle", "TranslatedTitle" or "Other".',
+                        'result': []
+                    }, 400
+
+        if key == "types":
+            if value["resourceTypeGeneral"] not in ["Audiovisual", "Book",
+                                                    "BookChapter", "Collection",
+                                                    "ComputationalNotebook",
+                                                    "ConferencePaper",
+                                                    "ConferenceProceeding",
+                                                    "DataPaper", "Dataset",
+                                                    "Dissertation", "Event",
+                                                    "Image",
+                                                    "InteractiveResource",
+                                                    "Model", "PeerReview",
+                                                    "Report", "Software",
+                                                    "Sound", "Standard", "Text",
+                                                    "Workflow", "Other"]:
+                return {
+                    'status': False,
+                    'message': 'ResourceTypeGeneral must be "Audiovisual", "Book", "BookChapter", "Collection", "ComputationalNotebook", "ConferencePaper", "ConferenceProceeding", "DataPaper", "Dataset", "Dissertation", "Event", "Image", "InteractiveResource", "Model", "PeerReview", "Report", "Software", "Sound", "Standard", "Text", "Workflow", "Other".',
+                    'result': []
+                }, 400
+
+            if len(value["resourceType"]) == 0:
+                return {
+                    'status': False,
+                    'message': 'ResourceType must be filled correctly.',
+                    'result': []
+                }, 400
+
+    return create_doi(json.dumps(final_payload))
 
 
 def get_pid(email):
