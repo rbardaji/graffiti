@@ -2239,6 +2239,7 @@ def post_pid(payload, mail, DOI=False):
                 raise ValueError('No creators added, minimum one required.')
 
     for key, value in payload.items():
+
         if isinstance(value, str) and key in required:
             claim_tr = ET.Element('tr', attrib={'class': 'entrance'})
             claim_td1 = ET.Element('td')
@@ -2249,7 +2250,12 @@ def post_pid(payload, mail, DOI=False):
             claim_tr.append(claim_td2)
 
             claim_td1.text = show_values[key]
-            claim_td2.text = value
+            if show_values[key] == 'Resource':
+                claim_td2_a = ET.Element('a', attrib={'href': value, 'target': '_blank'})
+                claim_td2_a.text = value
+                claim_td2.append(claim_td2_a)
+            else:
+                claim_td2.text = value
         elif isinstance(
             value, list) and len(value) >= 1 and (
                 key in optional or key in required):
